@@ -13,6 +13,9 @@
 <!-- SheetJS for XLSX export (loaded early, reliable CDN) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
   onerror="this.onerror=null;this.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'"></script>
+<!-- fflate for ZIP (sync, preserves user gesture for Web Share API) -->
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"
+  onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/fflate/0.8.2/fflate.min.js'"></script>
 <style>
 :root {
   --bg:     #0a0f1e;
@@ -303,6 +306,7 @@ body {
       📊 XLSX <span class="exp-sub">ввод в оборот</span>
     </button>
     <button class="btn-shr" id="btn-shr-xlsx" onclick="shareXLSX()" disabled title="Поделиться XLSX">📤</button>
+    <button class="btn-shr" id="btn-shr-zip" onclick="shareZIP()" disabled title="Поделиться ZIP (CSV+XLSX)">🗂️</button>
   </div>
 </div>
 
@@ -525,8 +529,9 @@ function renderList() {
   cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
   btnE.disabled    = n === 0;
   document.getElementById('btn-xlsx').disabled    = n === 0;
-  document.getElementById('btn-shr-csv').disabled = n === 0;
+  document.getElementById('btn-shr-csv').disabled  = n === 0;
   document.getElementById('btn-shr-xlsx').disabled = n === 0;
+  document.getElementById('btn-shr-zip').disabled  = n === 0;
 
   if (n === 0) {
     list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
@@ -656,6 +661,56 @@ function shareXLSX() {
   const file = _makeXLSXFile(codes.length, date);
   if (!file) { toast('⏳ SheetJS ещё загружается, повторите...'); return; }
   _tryShare(file, dlXLSX);
+}
+
+// ZIP both files and share — ZIP is allowed by Web Share API unlike xlsx
+function shareZIP() {
+  if (!codes.length) return;
+  if (typeof fflate === 'undefined') { toast('⏳ fflate загружается, повторите...'); return; }
+  const date = new Date().toISOString().slice(0,10);
+  const n = codes.length;
+
+  // Build CSV bytes
+  const csvContent = codes.map(c => c.raw).join('\n') + '\n';
+  const csvBytes = new TextEncoder().encode(csvContent);
+
+  // Build XLSX bytes
+  let xlsxBytes = null;
+  if (typeof XLSX !== 'undefined') {
+    const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
+    const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+    ws['!cols'] = [{ wch: 36 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Коды');
+    const arr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    xlsxBytes = new Uint8Array(arr);
+  }
+
+  // Pack into ZIP synchronously (fflate.zipSync is sync = user gesture preserved)
+  const zipEntries = {};
+  zipEntries[`km_codes_${n}шт_${date}.csv`] = csvBytes;
+  if (xlsxBytes) zipEntries[`km_vvod_${n}шт_${date}.xlsx`] = xlsxBytes;
+  const zipped = fflate.zipSync(zipEntries, { level: 6 });
+
+  const blob = new Blob([zipped], { type: 'application/zip' });
+  const file = new File([blob], `km_${n}шт_${date}.zip`, { type: 'application/zip' });
+
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ title: `КМ коды ${n}шт — CSV+XLSX`, files: [file] })
+      .then(() => toast('✅ ZIP отправлен!'))
+      .catch(e => { if (e.name !== 'AbortError') _dlZip(blob, file.name); });
+  } else {
+    _dlZip(blob, file.name);
+  }
+}
+
+function _dlZip(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('✅ ZIP скачан!');
 }
 
 // ── Init ──────────────────────────────────────────────────────
