@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0f1e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>КМ Сканер — Честный знак</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0f1e;
+  --bg2:      #111827;
+  --bg3:      #1a2235;
+  --border:   #1f2d45;
+  --accent:   #22c55e;
+  --accent2:  #16a34a;
+  --gold:     #f59e0b;
+  --red:      #ef4444;
+  --blue:     #3b82f6;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --radius:   14px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; overflow:hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+#topbar {
+  background: linear-gradient(135deg, #0d1b35 0%, #1a2a4a 100%);
+  padding: 12px 16px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+}
+#topbar::after {
+  content:''; position:absolute; bottom:-1px; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+}
+#topbar-left { display:flex; align-items:center; gap:10px; }
+#topbar-logo {
+  width:32px; height:32px; border-radius:8px;
+  background: linear-gradient(135deg, var(--accent), #059669);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px;
+}
+#topbar h1 { font-size:15px; font-weight:700; color:#f1f5f9; }
+#topbar-sub { font-size:10px; color:var(--muted); margin-top:1px; }
+#badge {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 14px;
+  font-size: 14px; font-weight: 700;
+  min-width: 64px; text-align: center;
+  color: var(--muted);
+  transition: all 0.3s;
+}
+#badge.has { background: linear-gradient(135deg,#14532d,#166534); border-color:#22c55e55; color:#86efac; }
+
+/* ── CAMERA BLOCK ── */
+#cam-block {
+  position:relative; background:#000;
+  width:100%; flex-shrink:0;
+  overflow:hidden;
+}
+#video { width:100%; height:100%; object-fit:cover; display:block; }
+#cam-block.portrait { height: 56vw; }
+
+/* Scan frame overlay */
+#overlay {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+}
+#frame {
+  width:55%; aspect-ratio:1/1; position:relative;
+}
+#frame::before, #frame::after, #frame span::before, #frame span::after {
+  content:''; position:absolute; width:22px; height:22px;
+  border-color: var(--accent); border-style:solid;
+  border-radius:2px;
+}
+#frame::before  { top:0;    left:0;  border-width:3px 0 0 3px; }
+#frame::after   { top:0;    right:0; border-width:3px 3px 0 0; }
+#frame span::before { bottom:0; left:0;  border-width:0 0 3px 3px; }
+#frame span::after  { bottom:0; right:0; border-width:0 3px 3px 0; }
+
+@keyframes scan-pulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
+  50% { box-shadow:0 0 0 6px rgba(34,197,94,0.15); }
+}
+#frame.scanning { animation: scan-pulse 2s infinite; }
+
+.scan-line {
+  position:absolute; left:5%; right:5%; height:2px; top:0;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  animation: line-move 2s ease-in-out infinite;
+  border-radius:2px;
+}
+@keyframes line-move {
+  0%   { top:0%; opacity:0; }
+  10%  { opacity:1; }
+  90%  { opacity:1; }
+  100% { top:100%; opacity:0; }
+}
+
+/* Flash effect */
+#flash {
+  position:absolute; inset:0; pointer-events:none;
+  background: rgba(34,197,94,0);
+  transition: background 0.05s;
+}
+#flash.fire { background: rgba(34,197,94,0.35); }
+
+/* Camera controls */
+#cam-ctrl {
+  background: var(--bg2);
+  padding: 8px 12px;
+  display:flex; gap:8px; align-items:center;
+  border-bottom: 1px solid var(--border);
+  flex-shrink:0;
+}
+#cam-select {
+  flex:1; background: var(--bg3); color: var(--text);
+  border: 1px solid var(--border); border-radius:8px;
+  padding:7px 10px; font-size:12px; font-family:inherit;
+}
+.cam-btn {
+  padding:8px 14px; border:none; border-radius:8px;
+  font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
+  transition: all 0.2s;
+}
+#btn-start { background: linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
+#btn-start:active { transform:scale(0.96); }
+#btn-stop  { background: var(--bg3); color: var(--muted); border:1px solid var(--border); }
+
+/* Status bar */
+#status-bar {
+  position:absolute; bottom:0; left:0; right:0;
+  background: rgba(0,0,0,0.65); backdrop-filter:blur(4px);
+  padding: 6px 12px; display:flex; align-items:center; gap:8px;
+}
+#status-dot {
+  width:8px; height:8px; border-radius:50%;
+  background: var(--muted); flex-shrink:0;
+  transition: background 0.3s;
+}
+#status-dot.ok  { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+#status-dot.dup { background: var(--gold); }
+#status-dot.err { background: var(--red); }
+#status-dot.active { background: var(--accent); animation: pulse-dot 1.5s infinite; }
+@keyframes pulse-dot {
+  0%,100% { opacity:1; } 50% { opacity:0.4; }
+}
+#status-text { font-size:11px; color:#cbd5e1; flex:1; }
+
+/* ── LIST ── */
+#list-section {
+  flex:1; overflow-y:auto; overscroll-behavior:contain;
+  padding-bottom: 90px;
+}
+#list-header {
+  background: var(--bg2);
+  padding: 8px 16px;
+  display:flex; justify-content:space-between; align-items:center;
+  border-bottom: 1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+}
+#list-count { font-size:11px; color:var(--muted); font-weight:500; }
+#btn-clear {
+  padding:4px 10px; background:transparent; color:#f87171;
+  border:1px solid #f8717155; border-radius:6px; font-size:11px;
+  cursor:pointer; font-family:inherit;
+}
+
+#code-list { }
+.c-item {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:10px;
+  background: var(--bg);
+  transition: background 0.4s;
+}
+.c-item:nth-child(even) { background: var(--bg2); }
+@keyframes item-in {
+  from { background: rgba(34,197,94,0.2); transform:translateX(-10px); opacity:0; }
+  to   { background: var(--bg); transform:translateX(0); opacity:1; }
+}
+.c-item.new { animation: item-in 0.4s ease-out; }
+.c-num { color:var(--muted); font-size:11px; min-width:22px; font-weight:600; }
+.c-info { flex:1; overflow:hidden; }
+.c-code { font-family:monospace; font-size:10px; color:#86efac; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.c-meta { font-size:9px; color:var(--muted); margin-top:2px; }
+.c-type {
+  font-size:9px; padding:2px 6px; border-radius:4px; font-weight:600;
+}
+.c-type.std { background:#14532d; color:#86efac; }
+.c-type.short { background:#713f12; color:#fef08a; }
+.c-type.unk { background:#1e1e2e; color:#94a3b8; }
+.c-del { color:#ef444488; font-size:20px; cursor:pointer; padding:0 4px; line-height:1; }
+.c-del:active { color:var(--red); }
+
+#empty {
+  padding:48px 24px; text-align:center; color:var(--muted);
+}
+#empty .empty-icon { font-size:48px; margin-bottom:12px; opacity:0.4; }
+#empty p { font-size:13px; line-height:1.6; }
+
+/* ── EXPORT BAR ── */
+#export-bar {
+  position:fixed; bottom:0; left:0; right:0;
+  background: linear-gradient(180deg, transparent 0%, var(--bg2) 30%);
+  padding: 8px 16px 16px;
+  display:flex; gap:8px;
+}
+#btn-export {
+  flex:1; padding:14px;
+  background: linear-gradient(135deg,#166534,#15803d);
+  color:#fff; border:none; border-radius:12px;
+  font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;
+  box-shadow: 0 4px 20px rgba(22,163,74,0.3);
+  transition: all 0.2s;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+#btn-export:active { transform:scale(0.97); }
+#btn-export:disabled {
+  background: var(--bg3); color:var(--muted);
+  box-shadow:none; cursor:not-allowed;
+}
+#export-sub { font-size:9px; font-weight:400; opacity:0.7; display:block; }
+
+/* Notification toast */
+#toast {
+  position:fixed; top:70px; left:50%; transform:translateX(-50%) translateY(-20px);
+  background: var(--bg3); border:1px solid var(--border);
+  border-radius:10px; padding:10px 18px;
+  font-size:13px; color:var(--text);
+  opacity:0; pointer-events:none;
+  transition: all 0.25s;
+  z-index:999; white-space:nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="topbar-left">
+    <div id="topbar-logo">🏷️</div>
+    <div>
+      <div id="topbar-h1" style="font-size:15px;font-weight:700;color:#f1f5f9;">КМ Сканер</div>
+      <div style="font-size:10px;color:var(--muted);">Честный знак → CSV</div>
+    </div>
+  </div>
+  <div id="badge">0 шт</div>
+</div>
+
+<!-- CAMERA -->
+<div id="cam-block" class="portrait">
+  <video id="video" playsinline muted autoplay></video>
+  <div id="overlay">
+    <div id="frame"><span></span><div class="scan-line"></div></div>
+  </div>
+  <div id="flash"></div>
+  <div id="status-bar">
+    <div id="status-dot"></div>
+    <div id="status-text">Нажмите «Старт» для сканирования</div>
+  </div>
+</div>
+
+<!-- CONTROLS -->
+<div id="cam-ctrl">
+  <select id="cam-select"><option value="">📷 Загрузка камер...</option></select>
+  <button class="cam-btn" id="btn-start" onclick="startScan()">▶ Старт</button>
+  <button class="cam-btn" id="btn-stop"  onclick="stopScan()">⏹</button>
+</div>
+
+<!-- LIST -->
+<div id="list-section">
+  <div id="list-header">
+    <span id="list-count">Список пуст</span>
+    <button id="btn-clear" onclick="clearAll()">🗑 Очистить</button>
+  </div>
+  <div id="code-list">
+    <div id="empty">
+      <div class="empty-icon">📷</div>
+      <p>Наведите камеру на DataMatrix-код<br>на этикетке Честного знака</p>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT -->
+<div id="export-bar">
+  <button id="btn-export" onclick="downloadCSV()" disabled>
+    <span>⬇️ Скачать CSV</span>
+    <span id="export-sub">для загрузки на портал ЧЗ</span>
+  </button>
+</div>
+
+<div id="toast"></div>
+
+<!-- ZXing library -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<script>
+// ── Constants ─────────────────────────────────────────────────
+const GS = '\u001d';
+const COOLDOWN = 2500;
+
+// ── State ─────────────────────────────────────────────────────
+let codes = [];
+let reader = null;
+let scanning = false;
+let lastRaw = '';
+let lastTime = 0;
+
+// ── Code conversion (from km_converter logic) ─────────────────
+function normalizeCode(raw) {
+  return raw
+    .replace(/<GS>/g, GS)
+    .replace(/\[GS\]/g, GS)
+    .replace(/\\x1d/gi, GS)
+    .replace(/\\u001d/gi, GS);
+}
+
+function convertToCSV(code) {
+  // Code is already in correct format with real GS chars.
+  // Portal ЧЗ expects: full KM code with GS separators as-is.
+  return code;
+}
+
+function detectType(code) {
+  if (code.includes(GS + '91') && code.includes(GS + '92')) return 'std';
+  if (code.includes(GS + '93')) return 'short';
+  if (/\u001d91/.test(code)) return 'std';
+  return 'unk';
+}
+
+function typeLabel(t) {
+  if (t === 'std')   return '<span class="c-type std">91/92</span>';
+  if (t === 'short') return '<span class="c-type short">93</span>';
+  return '<span class="c-type unk">?</span>';
+}
+
+// ── Camera ────────────────────────────────────────────────────
+async function initCameras() {
+  try {
+    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+    const sel = document.getElementById('cam-select');
+    sel.innerHTML = '';
+    if (devices.length === 0) {
+      sel.innerHTML = '<option>Камера не найдена</option>';
+      return;
+    }
+    let backIdx = -1;
+    devices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Камера ${i+1}`;
+      const lbl = d.label.toLowerCase();
+      if (lbl.includes('back') || lbl.includes('rear') ||
+          lbl.includes('environment') || lbl.includes('задн')) {
+        backIdx = i;
+      }
+      sel.appendChild(opt);
+    });
+    if (backIdx >= 0) sel.selectedIndex = backIdx;
+    // Auto-start on mobile
+    if (/Android|iPhone|iPad/i.test(navigator.userAgent)) startScan();
+  } catch(e) {
+    setStatus('Нет доступа к камере', 'err');
+  }
+}
+
+async function startScan() {
+  if (scanning) return;
+  try {
+    reader = new ZXing.BrowserMultiFormatReader();
+    const deviceId = document.getElementById('cam-select').value || undefined;
+
+    // Hints: prefer DataMatrix
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.CODE_128,
+    ]);
+
+    scanning = true;
+    document.getElementById('frame').classList.add('scanning');
+    setStatus('Наведите камеру на DataMatrix...', 'active');
+
+    await reader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
+      if (!result) return;
+      const now = Date.now();
+      const raw = result.getText();
+      if (raw === lastRaw && now - lastTime < COOLDOWN) return;
+      lastRaw = raw;
+      lastTime = now;
+      handleScan(raw);
+    });
+  } catch(e) {
+    scanning = false;
+    setStatus('Ошибка: ' + e.message, 'err');
+  }
+}
+
+function stopScan() {
+  if (reader) { try { reader.reset(); } catch(e) {} reader = null; }
+  scanning = false;
+  document.getElementById('frame').classList.remove('scanning');
+  setStatus('Остановлено', '');
+}
+
+// ── Scan handler ──────────────────────────────────────────────
+function handleScan(raw) {
+  const code = normalizeCode(raw);
+
+  if (!code.startsWith('01') || code.length < 30) {
+    setStatus('Не КМ-код — игнорирую', 'err');
+    return;
+  }
+  if (codes.some(c => c.raw === code)) {
+    setStatus('⚠️ Дубль — уже в списке', 'dup');
+    vibrate([80, 40, 80]);
+    return;
+  }
+
+  const type = detectType(code);
+  const gtin = code.slice(2, 16);
+  const serial = code.slice(18, code.indexOf(GS) > 0 ? code.indexOf(GS) : code.length);
+
+  codes.push({ raw: code, type, gtin, serial, ts: Date.now() });
+  setStatus(`✅ Добавлен код #${codes.length}`, 'ok');
+  vibrate([200]);
+  flash();
+  renderList();
+}
+
+// ── UI helpers ────────────────────────────────────────────────
+function setStatus(msg, cls) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-dot').className = cls || '';
+}
+
+function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
+
+function flash() {
+  const el = document.getElementById('flash');
+  el.classList.add('fire');
+  setTimeout(() => el.classList.remove('fire'), 200);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderList() {
+  const list  = document.getElementById('code-list');
+  const badge = document.getElementById('badge');
+  const count = document.getElementById('list-count');
+  const btnEx = document.getElementById('btn-export');
+
+  const n = codes.length;
+  badge.textContent = n + ' шт';
+  badge.className = n > 0 ? 'has' : '';
+  count.textContent = n > 0 ? `Кодов: ${n}` : 'Список пуст';
+  btnEx.disabled = n === 0;
+
+  if (n === 0) {
+    list.innerHTML = `<div id="empty">
+      <div class="empty-icon">📷</div>
+      <p>Наведите камеру на DataMatrix-код<br>на этикетке Честного знака</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = codes.map((c, i) => {
+    const disp = c.raw.replace(new RegExp(GS, 'g'), '[GS]');
+    const short = disp.length > 44 ? disp.slice(0, 41) + '…' : disp;
+    const isNew = i === codes.length - 1;
+    return `<div class="c-item${isNew ? ' new' : ''}" id="ci${i}">
+      <span class="c-num">${i+1}</span>
+      <div class="c-info">
+        <div class="c-code" title="${disp}">${short}</div>
+        <div class="c-meta">GTIN: ${c.gtin} &nbsp;|&nbsp; ${typeLabel(c.type)}</div>
+      </div>
+      <span class="c-del" onclick="removeCode(${i})">×</span>
+    </div>`;
+  }).join('');
+
+  list.lastElementChild?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function removeCode(idx) {
+  codes.splice(idx, 1);
+  renderList();
+  showToast('Код удалён');
+}
+
+function clearAll() {
+  if (codes.length === 0) return;
+  if (!confirm(`Удалить все ${codes.length} кодов?`)) return;
+  codes = [];
+  lastRaw = '';
+  renderList();
+  showToast('Список очищен');
+}
+
+// ── CSV Export ────────────────────────────────────────────────
+function downloadCSV() {
+  if (codes.length === 0) return;
+  // One code per line with real GS chars — as portal expects
+  const content = codes.map(c => c.raw).join('\n') + '\n';
+  const blob = new Blob([new TextEncoder().encode(content)], { type:'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.download = `km_codes_${codes.length}шт_${date}.csv`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`✅ CSV скачан (${codes.length} кодов)`);
+}
+
+// ── Init ──────────────────────────────────────────────────────
+initCameras();
+renderList();
+</script>
+</body>
+</html>
