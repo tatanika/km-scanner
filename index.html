@@ -252,6 +252,39 @@ body {
 }
 #btn-settings:active { transform:scale(.93); }
 
+/* Settings panel */
+#settings-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+  z-index:500; align-items:flex-end; justify-content:center;
+}
+#settings-overlay.open { display:flex; animation:fadeIn .2s; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+#settings-panel {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:20px 20px 0 0; padding:20px 18px 32px;
+  width:100%; max-width:480px;
+  animation:slideUp .2s ease;
+}
+@keyframes slideUp { from{transform:translateY(40px)} to{transform:none} }
+#settings-panel h3 { margin:0 0 16px; font-size:16px; color:var(--fg); }
+.sett-label { font-size:11px; color:var(--muted); margin-bottom:4px; }
+.sett-input {
+  width:100%; padding:11px 12px; border:1px solid var(--border);
+  border-radius:10px; background:var(--bg3); color:var(--fg);
+  font-size:13px; font-family:inherit; box-sizing:border-box; margin-bottom:12px;
+}
+.sett-input:focus { outline:none; border-color:var(--accent); }
+.sett-row { display:flex; gap:8px; margin-top:4px; }
+.sett-btn {
+  flex:1; padding:12px; border:none; border-radius:12px;
+  font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+  transition:transform .15s;
+}
+.sett-btn:active { transform:scale(.96); }
+.sett-btn.primary { background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; }
+.sett-btn.danger  { background:var(--bg3); border:1px solid var(--border); color:var(--red); }
+.sett-btn.save    { background:linear-gradient(135deg,#166534,#15803d); color:#fff; }
+
 #toast {
   position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
   background:var(--bg3); border:1px solid var(--border); border-radius:10px;
@@ -325,7 +358,23 @@ body {
   <button id="btn-yadisk" onclick="uploadYaDisk()" disabled>
     ☁️ Я.Диск <span class="exp-sub" id="yadisk-sub">не подключён</span>
   </button>
-  <button id="btn-settings" onclick="yadiskLogin()" title="Переподключить Яандекс.Диск">⚙️</button>
+  <button id="btn-settings" onclick="openSettings()" title="Настройки Яандекс.Диск">⚙️</button>
+</div>
+
+<!-- Settings panel -->
+<div id="settings-overlay" onclick="closeSettings(event)">
+  <div id="settings-panel">
+    <h3>⚙️ Настройки Яндекс.Диска</h3>
+    <div class="sett-label">Папка на Диске (путь)</div>
+    <input class="sett-input" id="sett-folder" type="text"
+      placeholder="disk:/Мои документы/КМ коды">
+    <div class="sett-label" id="sett-status" style="margin-bottom:12px;"></div>
+    <div class="sett-row">
+      <button class="sett-btn save" onclick="saveSettings()">✔ Сохранить</button>
+      <button class="sett-btn primary" id="sett-connect-btn" onclick="settConnect()">🔑 Подключить</button>
+      <button class="sett-btn danger" id="sett-disconnect-btn" onclick="settDisconnect()">× Отключить</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -757,22 +806,46 @@ setCamHeight();
 
 // ── Yandex Disk ─────────────────────────────────────────────────
 const YA_CLIENT = '3583350714d54c69a084a370e643b079';
-const YA_FOLDER = 'disk:/Компьютер WOODLEAF/Лазерная резка/маркетплейсы/коды ЧЗ';
+const YA_FOLDER_DEFAULT = 'disk:/КМ коды'; // папка по умолчанию
 
-function yadiskLogin() {
+function getYaFolder() {
+  return localStorage.getItem('ya_folder') || YA_FOLDER_DEFAULT;
+}
+
+// ── Settings panel ───────────────────────────────────────
+function openSettings() {
+  const folder = document.getElementById('sett-folder');
+  const status = document.getElementById('sett-status');
   const token = getYaToken();
-  if (token) {
-    const choice = confirm('Яндекс.Диск уже подключён.\n\nOK — переподключить\nОтмена — отключить Диск');
-    if (choice) {
-      window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
-    } else {
-      localStorage.removeItem('ya_token');
-      updateYaDiskUI();
-      toast('Яндекс.Диск отключён');
-    }
-  } else {
-    window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
-  }
+  folder.value = getYaFolder();
+  status.textContent = token ? '✅ Подключён' : '❌ Не подключён';
+  status.style.color = token ? 'var(--green)' : 'var(--red)';
+  document.getElementById('sett-disconnect-btn').style.display = token ? '' : 'none';
+  document.getElementById('sett-connect-btn').textContent = token ? '🔑 Переподключить' : '🔑 Подключить';
+  document.getElementById('settings-overlay').classList.add('open');
+}
+function closeSettings(e) {
+  if (!e || e.target === document.getElementById('settings-overlay'))
+    document.getElementById('settings-overlay').classList.remove('open');
+}
+function saveSettings() {
+  const val = document.getElementById('sett-folder').value.trim();
+  if (!val) { alert('Введите путь к папке'); return; }
+  localStorage.setItem('ya_folder', val);
+  closeSettings();
+  toast('✅ Папка сохранена: ' + val);
+}
+function settConnect() {
+  // Save folder first, then go to OAuth
+  const val = document.getElementById('sett-folder').value.trim();
+  if (val) localStorage.setItem('ya_folder', val);
+  window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
+}
+function settDisconnect() {
+  localStorage.removeItem('ya_token');
+  updateYaDiskUI();
+  closeSettings();
+  toast('Яндекс.Диск отключён');
 }
 
 function getYaToken() { return localStorage.getItem('ya_token'); }
@@ -819,7 +892,7 @@ async function uploadYaDisk() {
     // Upload CSV
     const csvContent = codes.map(c => c.raw).join('\n') + '\n';
     const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain'});
-    await yadiskUploadFile(token, `${YA_FOLDER}/km_codes_${n}шт_${date}.csv`, csvBlob);
+    await yadiskUploadFile(token, `${getYaFolder()}/km_codes_${n}шт_${date}.csv`, csvBlob);
 
     // Upload XLSX
     if (typeof XLSX !== 'undefined') {
@@ -830,16 +903,16 @@ async function uploadYaDisk() {
       XLSX.utils.book_append_sheet(wb, ws, 'Коды');
       const arr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
       const xlsxBlob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-      await yadiskUploadFile(token, `${YA_FOLDER}/km_vvod_${n}шт_${date}.xlsx`, xlsxBlob);
+      await yadiskUploadFile(token, `${getYaFolder()}/km_vvod_${n}шт_${date}.xlsx`, xlsxBlob);
     }
 
-    toast(`✅ Загружено на ЯДиск! ${YA_FOLDER}`);
+    toast(`✅ Загружено на ЯДиск! ${getYaFolder()}`);
   } catch(e) {
     console.error(e);
     if (e.message.includes('401')) {
       localStorage.removeItem('ya_token');
       updateYaDiskUI();
-      toast('Токен устарел — нажми 🔑 для повторного входа');
+      toast('Токен устарел — нажми ⚙️ для повторного входа');
     } else {
       toast('Ошибка: ' + e.message);
     }
@@ -854,9 +927,10 @@ async function uploadYaDisk() {
   const m = hash.match(/access_token=([^&]+)/);
   if (m) {
     localStorage.setItem('ya_token', m[1]);
-    // Clean URL
     history.replaceState(null, '', window.location.pathname);
     toast('✅ Яндекс.Диск подключён!');
+    // If no folder set yet, open settings to configure it
+    if (!localStorage.getItem('ya_folder')) openSettings();
   }
   updateYaDiskUI();
 })();
