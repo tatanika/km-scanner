@@ -603,14 +603,16 @@ function dlXLSX() {
   toast(`✅ XLSX скачан (${codes.length} кодов)`);
 }
 
-async function shareFiles() {
+function shareFiles() {
   if (!codes.length) return;
   const date = new Date().toISOString().slice(0,10);
+  const n = codes.length;
 
-  // Build CSV blob
+  // Build files SYNCHRONOUSLY before any async call
+  // (async breaks "user gesture" requirement in browsers)
   const csvContent = codes.map(c => c.raw).join('\n') + '\n';
-  const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain;charset=utf-8'});
-  const csvFile = new File([csvBlob], `km_codes_${codes.length}шт_${date}.csv`, {type:'text/plain'});
+  const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain'});
+  const csvFile = new File([csvBlob], `km_codes_${n}шт_${date}.csv`, {type:'text/plain'});
 
   // Build XLSX blob
   let xlsxFile = null;
@@ -627,36 +629,43 @@ async function shareFiles() {
 
   const filesToShare = xlsxFile ? [csvFile, xlsxFile] : [csvFile];
 
-  // Try Web Share API (Android/iOS native share sheet)
+  // Attempt 1: share files via Web Share API
   if (navigator.share && navigator.canShare && navigator.canShare({ files: filesToShare })) {
-    try {
-      await navigator.share({
-        title: `КМ Коды ${codes.length} шт — ${date}`,
-        text: `Отсканировано ${codes.length} кодов маркировки`,
-        files: filesToShare,
+    navigator.share({ title: `КМ коды ${n}шт ${date}`, files: filesToShare })
+      .then(() => toast('✅ Файлы отправлены!'))
+      .catch(e => {
+        if (e.name === 'AbortError') return;
+        // Attempt 2: share only CSV file
+        if (navigator.canShare({ files: [csvFile] })) {
+          navigator.share({ title: `КМ коды ${n}шт`, files: [csvFile] })
+            .then(() => toast('✅ CSV отправлен!'))
+            .catch(() => _shareAsText(n, date));
+        } else { _shareAsText(n, date); }
       });
-      toast('✅ Файлы отправлены!');
-    } catch(e) {
-      if (e.name !== 'AbortError') toast('Ошибка: ' + e.message);
-    }
-  } else {
-    // Fallback — just download both
-    toast('Поделиться недоступно, скачиваю файлы...');
-    // download CSV
-    const a1 = document.createElement('a');
-    a1.href = URL.createObjectURL(csvBlob);
-    a1.download = csvFile.name;
-    a1.click();
-    URL.revokeObjectURL(a1.href);
-    // download XLSX after short delay
-    if (xlsxFile) setTimeout(() => {
-      const a2 = document.createElement('a');
-      a2.href = URL.createObjectURL(xlsxFile);
-      a2.download = xlsxFile.name;
-      a2.click();
-      URL.revokeObjectURL(a2.href);
-    }, 500);
+    return;
   }
+  // Attempt 2: share as text
+  _shareAsText(n, date);
+}
+
+function _shareAsText(n, date) {
+  const txt = `КМ коды ${n}шт (${date}):\n` +
+    codes.map(c => '01' + c.gtin + '21' + c.serial).join('\n');
+  if (navigator.share) {
+    navigator.share({ title: `КМ коды ${n}шт`, text: txt })
+      .then(() => toast('✅ Коды отправлены как текст'))
+      .catch(e => { if (e.name !== 'AbortError') _dlBoth(); });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt)
+      .then(() => toast('📋 Скопировано! Вставь в Telegram себе'))
+      .catch(_dlBoth);
+  } else { _dlBoth(); }
+}
+
+function _dlBoth() {
+  toast('Скачиваю файлы...');
+  dlCSV();
+  setTimeout(dlXLSX, 600);
 }
 
 // ── Init ──────────────────────────────────────────────────────
