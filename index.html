@@ -405,6 +405,7 @@ function handleCode(raw) {
   if (codes.some(c => c.raw === code)) {
     setStat('⚠️ Дубль — уже в списке', 'dup');
     vibrate([80, 40, 80]);
+    beep('dup');
     return;
   }
 
@@ -419,6 +420,7 @@ function handleCode(raw) {
   codes.push({ raw: code, gtin, serial, type });
   setStat(`✅ #${codes.length} GTIN: ${gtin}`, 'ok');
   vibrate([200]);
+  beep('ok');
   doFlash();
   renderList();
 }
@@ -429,6 +431,39 @@ function setStat(msg, cls) {
   document.getElementById('stat-dot').className = cls || '';
 }
 function vibrate(p) { navigator.vibrate?.(p); }
+
+// Beep via Web Audio API — no files needed, works offline
+let audioCtx = null;
+function beep(type = 'ok') {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === 'ok') {
+      // Короткий "бип" как у сканера: 880Hz → 1100Hz
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(1100, ctx.currentTime + 0.06);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.type = 'square';
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
+    } else if (type === 'dup') {
+      // Двойной низкий — дубль
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.type = 'square';
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.25);
+    }
+  } catch(e) { /* AudioContext недоступен — молчим */ }
+}
+
 function doFlash() {
   const el = document.getElementById('flash');
   el.classList.remove('go');
