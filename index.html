@@ -10,6 +10,9 @@
 <title>КМ Сканер — Честный знак</title>
 <link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- SheetJS for XLSX export (loaded early, reliable CDN) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+  onerror="this.onerror=null;this.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'"></script>
 <style>
 :root {
   --bg:     #0a0f1e;
@@ -682,7 +685,5 @@ setCamHeight();
 initCams();
 renderList();
 </script>
-<!-- SheetJS for XLSX export -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
