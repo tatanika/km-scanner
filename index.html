@@ -56,12 +56,13 @@ body {
 }
 #badge.on { background:linear-gradient(135deg,#14532d,#166534); border-color:#22c55e55; color:#86efac; }
 
-/* ── SCANNER AREA (big, ~60% of screen) ── */
+/* ── SCANNER AREA (big, ~62% of screen) ── */
 #scanner-wrap {
-  flex: 0 0 60%;
+  flex: 0 0 62vh;
   position: relative;
   background: #000;
   overflow: hidden;
+  min-height: 240px;
 }
 
 /* html5-qrcode injects its own video — we style the container */
@@ -69,16 +70,24 @@ body {
   width: 100% !important;
   height: 100% !important;
   border: none !important;
+  background: #000 !important;
 }
-/* Hide html5-qrcode's own UI chrome we don't need */
+/* Hide html5-qrcode's own UI chrome */
 #qr-reader > img,
+#qr-reader__dashboard_section_csr,
 #qr-reader__dashboard_section_csr span,
 #qr-reader__status_span,
+#qr-reader__dashboard,
 #qr-reader__dashboard_section_swaplink { display:none !important; }
 #qr-reader video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  position: absolute !important;
+  top: 0 !important; left: 0 !important;
+}
+#qr-reader canvas {
+  display: none !important;
 }
 
 /* Scan frame overlay */
@@ -325,6 +334,9 @@ async function startScan() {
     scanning = true;
     setStat('Наводите камеру на DataMatrix...', 'scan');
     document.getElementById('btn-go').style.opacity = '.4';
+    // Force correct sizing after html5-qrcode injects its DOM
+    setTimeout(fixCamSize, 100);
+    setTimeout(fixCamSize, 500);
   } catch(e) {
     setStat('Ошибка: ' + e, 'err');
   }
@@ -339,6 +351,19 @@ function onScanSuccess(decoded) {
 }
 
 function onScanError() { /* ignore per-frame errors */ }
+
+function fixCamSize() {
+  // html5-qrcode sets explicit height on its inner div — override it
+  const wrap = document.getElementById('scanner-wrap');
+  const inner = document.querySelector('#qr-reader > div');
+  if (inner) {
+    inner.style.cssText = 'width:100%!important;height:100%!important;padding:0!important;border:none!important;';
+  }
+  const video = document.querySelector('#qr-reader video');
+  if (video) {
+    video.style.cssText = 'width:100%!important;height:100%!important;object-fit:cover!important;position:absolute!important;top:0!important;left:0!important;';
+  }
+}
 
 // ── Stop ──────────────────────────────────────────────────────
 async function stopScan() {
