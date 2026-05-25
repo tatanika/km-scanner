@@ -203,45 +203,54 @@ body {
 }
 .ei { font-size:36px; margin-bottom:8px; opacity:.4; }
 
-/* ── EXPORT ── */
+/* ── EXPORT BAR ── */
 #exp-bar {
   position:fixed; bottom:0; left:0; right:0;
-  background:linear-gradient(180deg,transparent,var(--bg2) 40%);
-  padding:8px 14px 14px;
-  display:flex; gap:8px; flex-direction:column;
+  background:linear-gradient(180deg,transparent,var(--bg2) 35%);
+  padding:8px 10px 14px;
+  display:flex; gap:6px; align-items:stretch;
 }
-#exp-row { display:flex; gap:8px; }
-#btn-exp {
-  flex:1; padding:13px; border:none; border-radius:12px;
-  background:linear-gradient(135deg,#166534,#15803d);
-  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
-  box-shadow:0 4px 20px rgba(22,163,74,.3);
-  display:flex; align-items:center; justify-content:center; gap:6px;
+.exp-wrap { position:relative; flex:1; }
+.exp-main {
+  width:100%; padding:11px 6px; border:none; border-radius:12px;
+  color:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
   transition:transform .15s;
 }
-#btn-exp:active { transform:scale(.97); }
-#btn-exp:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
-#btn-xlsx {
-  flex:1; padding:13px; border:none; border-radius:12px;
-  background:linear-gradient(135deg,#1e3a5f,#1d4ed8);
-  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
-  box-shadow:0 4px 20px rgba(29,78,216,.3);
-  display:flex; align-items:center; justify-content:center; gap:6px;
-  transition:transform .15s;
+.exp-main:active { transform:scale(.96); }
+.exp-main:disabled { background:var(--bg3) !important; color:var(--muted); cursor:not-allowed; box-shadow:none !important; }
+.exp-main.csv  { background:linear-gradient(135deg,#166534,#15803d); box-shadow:0 3px 14px rgba(22,163,74,.3); }
+.exp-main.xlsx { background:linear-gradient(135deg,#1e3a5f,#1d4ed8); box-shadow:0 3px 14px rgba(29,78,216,.3); }
+.exp-sub { font-size:9px; font-weight:400; opacity:.75; }
+.exp-menu {
+  display:none; position:absolute; bottom:calc(100% + 8px); left:0; right:0;
+  background:var(--bg3); border:1px solid var(--border); border-radius:12px;
+  overflow:hidden; z-index:200; box-shadow:0 8px 32px rgba(0,0,0,.5);
 }
-#btn-xlsx:active { transform:scale(.97); }
-#btn-xlsx:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
-.exp-sub { font-size:9px; font-weight:400; opacity:.7; display:block; }
-/* share icon buttons */
-.btn-shr {
-  padding:13px 14px; border:none; border-radius:12px;
-  font-size:16px; cursor:pointer; font-family:inherit;
-  background:linear-gradient(135deg,#4a1d96,#7c3aed);
-  box-shadow:0 2px 12px rgba(124,58,237,.3);
+.exp-menu.open { display:block; animation:popUp .15s ease; }
+@keyframes popUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+.exp-menu button {
+  width:100%; padding:13px 16px; border:none; background:none;
+  color:var(--fg); font-size:14px; font-weight:500; cursor:pointer;
+  text-align:left; font-family:inherit; display:flex; align-items:center; gap:10px;
+}
+.exp-menu button:not(:last-child) { border-bottom:1px solid var(--border); }
+.exp-menu button:active { background:var(--bg2); }
+#btn-yadisk {
+  flex:1.3; padding:11px 8px; border:none; border-radius:12px;
+  background:#fff; color:#222; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  transition:transform .15s; box-shadow:0 3px 14px rgba(255,255,255,.15);
+}
+#btn-yadisk:active { transform:scale(.96); }
+#btn-yadisk:disabled { background:var(--bg3); color:var(--muted); cursor:not-allowed; box-shadow:none; }
+#btn-settings {
+  padding:11px 10px; border:none; border-radius:12px;
+  background:var(--bg3); border:1px solid var(--border);
+  color:var(--muted); font-size:16px; cursor:pointer;
   transition:transform .15s; flex-shrink:0;
 }
-.btn-shr:active { transform:scale(.95); }
-.btn-shr:disabled { background:var(--bg3); box-shadow:none; cursor:not-allowed; filter:grayscale(1); }
+#btn-settings:active { transform:scale(.93); }
 
 #toast {
   position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
@@ -295,26 +304,28 @@ body {
 
 <!-- EXPORT -->
 <div id="exp-bar">
-  <div id="exp-row">
-    <button id="btn-exp" onclick="dlCSV()" disabled>
-      ⬇️ CSV <span class="exp-sub">отчёт о нанесении</span>
+  <div class="exp-wrap">
+    <button class="exp-main csv" id="btn-csv-main" onclick="toggleMenu('menu-csv')" disabled>
+      ⬇️ CSV <span class="exp-sub">отчёт</span>
     </button>
-    <button class="btn-shr" id="btn-shr-csv" onclick="shareCSV()" disabled title="Поделиться CSV">📤</button>
+    <div class="exp-menu" id="menu-csv">
+      <button onclick="dlCSV();closeMenus()">⬇️ Скачать</button>
+      <button onclick="shareCSV();closeMenus()">📤 Поделиться</button>
+    </div>
   </div>
-  <div id="exp-row">
-    <button id="btn-xlsx" onclick="dlXLSX()" disabled>
-      📊 XLSX <span class="exp-sub">ввод в оборот</span>
+  <div class="exp-wrap">
+    <button class="exp-main xlsx" id="btn-xlsx-main" onclick="toggleMenu('menu-xlsx')" disabled>
+      📊 XLSX <span class="exp-sub">ввод</span>
     </button>
-    <button class="btn-shr" id="btn-shr-xlsx" onclick="shareXLSX()" disabled title="Поделиться XLSX">📤</button>
-    <button class="btn-shr" id="btn-shr-zip" onclick="shareZIP()" disabled title="Поделиться ZIP (CSV+XLSX)">🗂️</button>
+    <div class="exp-menu" id="menu-xlsx">
+      <button onclick="dlXLSX();closeMenus()">⬇️ Скачать</button>
+      <button onclick="shareXLSX();closeMenus()">📤 Поделиться</button>
+    </div>
   </div>
-  <div id="exp-row">
-    <button id="btn-yadisk" onclick="uploadYaDisk()" disabled
-      style="background:linear-gradient(135deg,#1a1a2e,#e53935);box-shadow:0 4px 20px rgba(229,57,53,.3);">
-      ☁️ Яндекс.Диск <span class="exp-sub" id="yadisk-sub">не подключён</span>
-    </button>
-    <button class="btn-shr" onclick="yadiskLogin()" title="Подключить Я.Disk" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c);box-shadow:0 2px 12px rgba(185,28,28,.3);">🔑</button>
-  </div>
+  <button id="btn-yadisk" onclick="uploadYaDisk()" disabled>
+    ☁️ Я.Диск <span class="exp-sub" id="yadisk-sub">не подключён</span>
+  </button>
+  <button id="btn-settings" onclick="yadiskLogin()" title="Переподключить Яандекс.Диск">⚙️</button>
 </div>
 
 <div id="toast"></div>
@@ -528,17 +539,15 @@ function renderList() {
   const list = document.getElementById('code-list');
   const badge = document.getElementById('badge');
   const cnt   = document.getElementById('list-cnt');
-  const btnE  = document.getElementById('btn-exp');
   const n = codes.length;
 
   document.getElementById('badge-num').textContent = n;
   document.getElementById('badge').className = n > 0 ? 'on' : '';
   cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
-  btnE.disabled    = n === 0;
-  document.getElementById('btn-xlsx').disabled    = n === 0;
-  document.getElementById('btn-shr-csv').disabled  = n === 0;
-  document.getElementById('btn-shr-xlsx').disabled = n === 0;
-  document.getElementById('btn-shr-zip').disabled  = n === 0;
+  const csvBtn = document.getElementById('btn-csv-main');
+  const xlsxBtn = document.getElementById('btn-xlsx-main');
+  if (csvBtn) csvBtn.disabled = n === 0;
+  if (xlsxBtn) xlsxBtn.disabled = n === 0;
   if (typeof updateYaDiskUI === 'function') updateYaDiskUI();
 
   if (n === 0) {
@@ -580,6 +589,20 @@ function clearAll() {
   renderList();
   toast('Список очищен');
 }
+
+// ── Popup menus ───────────────────────────────────────────────
+function toggleMenu(id) {
+  const m = document.getElementById(id);
+  const isOpen = m.classList.contains('open');
+  closeMenus();
+  if (!isOpen) m.classList.add('open');
+}
+function closeMenus() {
+  document.querySelectorAll('.exp-menu.open').forEach(m => m.classList.remove('open'));
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.exp-wrap')) closeMenus();
+});
 
 // ── Export ────────────────────────────────────────────────────
 function dlCSV() {
