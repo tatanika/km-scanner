@@ -229,16 +229,16 @@ body {
 #btn-xlsx:active { transform:scale(.97); }
 #btn-xlsx:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
 .exp-sub { font-size:9px; font-weight:400; opacity:.7; display:block; }
-#btn-share {
-  width:100%; padding:11px; border:none; border-radius:12px;
+/* share icon buttons */
+.btn-shr {
+  padding:13px 14px; border:none; border-radius:12px;
+  font-size:16px; cursor:pointer; font-family:inherit;
   background:linear-gradient(135deg,#4a1d96,#7c3aed);
-  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
-  box-shadow:0 4px 20px rgba(124,58,237,.3);
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  transition:transform .15s;
+  box-shadow:0 2px 12px rgba(124,58,237,.3);
+  transition:transform .15s; flex-shrink:0;
 }
-#btn-share:active { transform:scale(.97); }
-#btn-share:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
+.btn-shr:active { transform:scale(.95); }
+.btn-shr:disabled { background:var(--bg3); box-shadow:none; cursor:not-allowed; filter:grayscale(1); }
 
 #toast {
   position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
@@ -296,13 +296,14 @@ body {
     <button id="btn-exp" onclick="dlCSV()" disabled>
       ⬇️ CSV <span class="exp-sub">отчёт о нанесении</span>
     </button>
+    <button class="btn-shr" id="btn-shr-csv" onclick="shareCSV()" disabled title="Поделиться CSV">📤</button>
+  </div>
+  <div id="exp-row">
     <button id="btn-xlsx" onclick="dlXLSX()" disabled>
       📊 XLSX <span class="exp-sub">ввод в оборот</span>
     </button>
+    <button class="btn-shr" id="btn-shr-xlsx" onclick="shareXLSX()" disabled title="Поделиться XLSX">📤</button>
   </div>
-  <button id="btn-share" onclick="shareFiles()" disabled>
-    📤 Поделиться — отправить на компьютер
-  </button>
 </div>
 
 <div id="toast"></div>
@@ -523,8 +524,9 @@ function renderList() {
   document.getElementById('badge').className = n > 0 ? 'on' : '';
   cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
   btnE.disabled    = n === 0;
-  document.getElementById('btn-xlsx').disabled  = n === 0;
-  document.getElementById('btn-share').disabled = n === 0;
+  document.getElementById('btn-xlsx').disabled    = n === 0;
+  document.getElementById('btn-shr-csv').disabled = n === 0;
+  document.getElementById('btn-shr-xlsx').disabled = n === 0;
 
   if (n === 0) {
     list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
@@ -606,69 +608,54 @@ function dlXLSX() {
   toast(`✅ XLSX скачан (${codes.length} кодов)`);
 }
 
-function shareFiles() {
+function _makeCSVFile(n, date) {
+  const content = codes.map(c => c.raw).join('\n') + '\n';
+  const blob = new Blob([new TextEncoder().encode(content)], {type:'text/plain'});
+  return new File([blob], `km_codes_${n}шт_${date}.csv`, {type:'text/plain'});
+}
+
+function _makeXLSXFile(n, date) {
+  if (typeof XLSX === 'undefined') return null;
+  const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
+  const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+  ws['!cols'] = [{ wch: 36 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Коды');
+  const arr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  const blob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  return new File([blob], `km_vvod_${n}шт_${date}.xlsx`,
+    {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+function _tryShare(file, fallbackFn) {
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ title: file.name, files: [file] })
+      .then(() => toast('✅ Отправлено!'))
+      .catch(e => { if (e.name !== 'AbortError') fallbackFn(); });
+  } else if (navigator.share) {
+    // Share as text fallback
+    const shortCodes = codes.map(c => '01' + c.gtin + '21' + c.serial).join('\n');
+    navigator.share({ title: file.name, text: shortCodes })
+      .then(() => toast('✅ Отправлено как текст'))
+      .catch(e => { if (e.name !== 'AbortError') fallbackFn(); });
+  } else {
+    fallbackFn();
+  }
+}
+
+function shareCSV() {
   if (!codes.length) return;
   const date = new Date().toISOString().slice(0,10);
-  const n = codes.length;
-
-  // Build files SYNCHRONOUSLY before any async call
-  // (async breaks "user gesture" requirement in browsers)
-  const csvContent = codes.map(c => c.raw).join('\n') + '\n';
-  const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain'});
-  const csvFile = new File([csvBlob], `km_codes_${n}шт_${date}.csv`, {type:'text/plain'});
-
-  // Build XLSX blob
-  let xlsxFile = null;
-  if (typeof XLSX !== 'undefined') {
-    const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
-    const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
-    ws['!cols'] = [{ wch: 36 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Коды');
-    const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-    const xlsxBlob = new Blob([xlsxData], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    xlsxFile = new File([xlsxBlob], `km_vvod_${codes.length}шт_${date}.xlsx`, {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  }
-
-  const filesToShare = xlsxFile ? [csvFile, xlsxFile] : [csvFile];
-
-  // Attempt 1: share files via Web Share API
-  if (navigator.share && navigator.canShare && navigator.canShare({ files: filesToShare })) {
-    navigator.share({ title: `КМ коды ${n}шт ${date}`, files: filesToShare })
-      .then(() => toast('✅ Файлы отправлены!'))
-      .catch(e => {
-        if (e.name === 'AbortError') return;
-        // Attempt 2: share only CSV file
-        if (navigator.canShare({ files: [csvFile] })) {
-          navigator.share({ title: `КМ коды ${n}шт`, files: [csvFile] })
-            .then(() => toast('✅ CSV отправлен!'))
-            .catch(() => _shareAsText(n, date));
-        } else { _shareAsText(n, date); }
-      });
-    return;
-  }
-  // Attempt 2: share as text
-  _shareAsText(n, date);
+  const file = _makeCSVFile(codes.length, date);
+  _tryShare(file, dlCSV);
 }
 
-function _shareAsText(n, date) {
-  const txt = `КМ коды ${n}шт (${date}):\n` +
-    codes.map(c => '01' + c.gtin + '21' + c.serial).join('\n');
-  if (navigator.share) {
-    navigator.share({ title: `КМ коды ${n}шт`, text: txt })
-      .then(() => toast('✅ Коды отправлены как текст'))
-      .catch(e => { if (e.name !== 'AbortError') _dlBoth(); });
-  } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(txt)
-      .then(() => toast('📋 Скопировано! Вставь в Telegram себе'))
-      .catch(_dlBoth);
-  } else { _dlBoth(); }
-}
-
-function _dlBoth() {
-  toast('Скачиваю файлы...');
-  dlCSV();
-  setTimeout(dlXLSX, 600);
+function shareXLSX() {
+  if (!codes.length) return;
+  const date = new Date().toISOString().slice(0,10);
+  const file = _makeXLSXFile(codes.length, date);
+  if (!file) { toast('⏳ SheetJS ещё загружается, повторите...'); return; }
+  _tryShare(file, dlXLSX);
 }
 
 // ── Init ──────────────────────────────────────────────────────
