@@ -308,6 +308,13 @@ body {
     <button class="btn-shr" id="btn-shr-xlsx" onclick="shareXLSX()" disabled title="Поделиться XLSX">📤</button>
     <button class="btn-shr" id="btn-shr-zip" onclick="shareZIP()" disabled title="Поделиться ZIP (CSV+XLSX)">🗂️</button>
   </div>
+  <div id="exp-row">
+    <button id="btn-yadisk" onclick="uploadYaDisk()" disabled
+      style="background:linear-gradient(135deg,#1a1a2e,#e53935);box-shadow:0 4px 20px rgba(229,57,53,.3);">
+      ☁️ Яндекс.Диск <span class="exp-sub" id="yadisk-sub">не подключён</span>
+    </button>
+    <button class="btn-shr" onclick="yadiskLogin()" title="Подключить Я.Disk" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c);box-shadow:0 2px 12px rgba(185,28,28,.3);">🔑</button>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -723,6 +730,101 @@ function setCamHeight() {
 }
 window.addEventListener('resize', setCamHeight);
 setCamHeight();
+
+// ── Yandex Disk ─────────────────────────────────────────────────
+const YA_CLIENT = '3583350714d54c69a084a370e643b079';
+const YA_FOLDER = 'disk:/Честный знак/КМ коды'; // можно сменить
+
+function yadiskLogin() {
+  const url = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
+  window.location.href = url;
+}
+
+function getYaToken() { return localStorage.getItem('ya_token'); }
+
+function updateYaDiskUI() {
+  const token = getYaToken();
+  const sub = document.getElementById('yadisk-sub');
+  const btn = document.getElementById('btn-yadisk');
+  if (token) {
+    sub.textContent = 'отправить CSV+XLSX';
+    btn.disabled = codes.length === 0;
+  } else {
+    sub.textContent = 'не подключён';
+    btn.disabled = true;
+  }
+}
+
+async function yadiskUploadFile(token, path, blob) {
+  // Step 1: get upload URL
+  const r1 = await fetch(
+    `https://cloud-api.yandex.net/v1/disk/resources/upload?path=${encodeURIComponent(path)}&overwrite=true`,
+    { headers: { Authorization: `OAuth ${token}` } }
+  );
+  if (!r1.ok) throw new Error(`Ошибка получения URL: ${r1.status}`);
+  const { href } = await r1.json();
+
+  // Step 2: upload
+  const r2 = await fetch(href, { method: 'PUT', body: blob });
+  if (!r2.ok) throw new Error(`Ошибка загрузки: ${r2.status}`);
+}
+
+async function uploadYaDisk() {
+  const token = getYaToken();
+  if (!token) { yadiskLogin(); return; }
+  if (!codes.length) return;
+
+  const date = new Date().toISOString().slice(0,10);
+  const n = codes.length;
+
+  toast('☁️ Загружаю на Яндекс.Диск...');
+  document.getElementById('btn-yadisk').disabled = true;
+
+  try {
+    // Upload CSV
+    const csvContent = codes.map(c => c.raw).join('\n') + '\n';
+    const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain'});
+    await yadiskUploadFile(token, `${YA_FOLDER}/km_codes_${n}шт_${date}.csv`, csvBlob);
+
+    // Upload XLSX
+    if (typeof XLSX !== 'undefined') {
+      const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
+      const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+      ws['!cols'] = [{ wch: 36 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Коды');
+      const arr = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+      const xlsxBlob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      await yadiskUploadFile(token, `${YA_FOLDER}/km_vvod_${n}шт_${date}.xlsx`, xlsxBlob);
+    }
+
+    toast(`✅ Загружено на ЯДиск! ${YA_FOLDER}`);
+  } catch(e) {
+    console.error(e);
+    if (e.message.includes('401')) {
+      localStorage.removeItem('ya_token');
+      updateYaDiskUI();
+      toast('Токен устарел — нажми 🔑 для повторного входа');
+    } else {
+      toast('Ошибка: ' + e.message);
+    }
+  } finally {
+    updateYaDiskUI();
+  }
+}
+
+// Auto-capture OAuth token from URL hash after Yandex redirect
+(function checkYaToken() {
+  const hash = window.location.hash;
+  const m = hash.match(/access_token=([^&]+)/);
+  if (m) {
+    localStorage.setItem('ya_token', m[1]);
+    // Clean URL
+    history.replaceState(null, '', window.location.pathname);
+    toast('✅ Яндекс.Диск подключён!');
+  }
+  updateYaDiskUI();
+})();
 
 initCams();
 renderList();
