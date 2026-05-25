@@ -58,7 +58,8 @@ body {
 
 /* ── SCANNER AREA (big, ~62% of screen) ── */
 #scanner-wrap {
-  flex: 0 0 45vh;
+  flex: none;
+  /* height set via JS in setCamHeight() to bypass html5-qrcode overrides */
   position: relative;
   background: #000;
   overflow: hidden;
@@ -508,6 +509,16 @@ function dlCSV() {
 }
 
 // ── Init ──────────────────────────────────────────────────────
+function setCamHeight() {
+  // 45% of viewport height — JS-enforced, immune to html5-qrcode CSS injection
+  const h = Math.min(Math.round(window.innerHeight * 0.45), 380);
+  const wrap = document.getElementById('scanner-wrap');
+  wrap.style.height = Math.max(h, 200) + 'px';
+  fixCamSize();
+}
+window.addEventListener('resize', setCamHeight);
+setCamHeight();
+
 initCams();
 renderList();
 </script>
