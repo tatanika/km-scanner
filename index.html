@@ -9,549 +9,481 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>КМ Сканер — Честный знак</title>
 <link rel="manifest" href="manifest.json">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:       #0a0f1e;
-  --bg2:      #111827;
-  --bg3:      #1a2235;
-  --border:   #1f2d45;
-  --accent:   #22c55e;
-  --accent2:  #16a34a;
-  --gold:     #f59e0b;
-  --red:      #ef4444;
-  --blue:     #3b82f6;
-  --text:     #e2e8f0;
-  --muted:    #64748b;
-  --radius:   14px;
+  --bg:     #0a0f1e;
+  --bg2:    #111827;
+  --bg3:    #1a2235;
+  --border: #1f2d45;
+  --green:  #22c55e;
+  --green2: #16a34a;
+  --gold:   #f59e0b;
+  --red:    #ef4444;
+  --text:   #e2e8f0;
+  --muted:  #64748b;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { height:100%; overflow:hidden; }
+html { height:100%; }
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  display: flex;
-  flex-direction: column;
+  height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  display: flex; flex-direction: column;
 }
 
-/* ── TOPBAR ── */
+/* ── TOP BAR ── */
 #topbar {
-  background: linear-gradient(135deg, #0d1b35 0%, #1a2a4a 100%);
-  padding: 12px 16px 10px;
+  background: linear-gradient(135deg,#0d1b35,#1a2a4a);
+  padding: 10px 16px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  position: relative;
 }
-#topbar::after {
-  content:''; position:absolute; bottom:-1px; left:0; right:0; height:1px;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  opacity: 0.4;
+.tb-left { display:flex; align-items:center; gap:10px; }
+.tb-icon {
+  width:30px; height:30px; border-radius:8px;
+  background: linear-gradient(135deg,var(--green),#059669);
+  display:flex; align-items:center; justify-content:center; font-size:15px;
 }
-#topbar-left { display:flex; align-items:center; gap:10px; }
-#topbar-logo {
-  width:32px; height:32px; border-radius:8px;
-  background: linear-gradient(135deg, var(--accent), #059669);
-  display:flex; align-items:center; justify-content:center;
-  font-size:16px;
-}
-#topbar h1 { font-size:15px; font-weight:700; color:#f1f5f9; }
-#topbar-sub { font-size:10px; color:var(--muted); margin-top:1px; }
+.tb-title { font-size:14px; font-weight:700; color:#f1f5f9; }
+.tb-sub   { font-size:10px; color:var(--muted); }
 #badge {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 20px; padding: 5px 14px;
-  font-size: 14px; font-weight: 700;
-  min-width: 64px; text-align: center;
-  color: var(--muted);
-  transition: all 0.3s;
+  background: var(--bg3); border:1px solid var(--border);
+  border-radius:16px; padding:4px 12px;
+  font-size:14px; font-weight:700; color:var(--muted);
+  transition: all .3s;
 }
-#badge.has { background: linear-gradient(135deg,#14532d,#166534); border-color:#22c55e55; color:#86efac; }
+#badge.on { background:linear-gradient(135deg,#14532d,#166534); border-color:#22c55e55; color:#86efac; }
 
-/* ── CAMERA BLOCK ── */
-#cam-block {
-  position:relative; background:#000;
-  width:100%; flex-shrink:0;
-  overflow:hidden;
+/* ── SCANNER AREA (big, ~60% of screen) ── */
+#scanner-wrap {
+  flex: 0 0 60%;
+  position: relative;
+  background: #000;
+  overflow: hidden;
 }
-#video { width:100%; height:100%; object-fit:cover; display:block; }
-#cam-block.portrait { height: 56vw; }
+
+/* html5-qrcode injects its own video — we style the container */
+#qr-reader {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+/* Hide html5-qrcode's own UI chrome we don't need */
+#qr-reader > img,
+#qr-reader__dashboard_section_csr span,
+#qr-reader__status_span,
+#qr-reader__dashboard_section_swaplink { display:none !important; }
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
 
 /* Scan frame overlay */
-#overlay {
-  position:absolute; inset:0;
+#scan-overlay {
+  position:absolute; inset:0; pointer-events:none;
   display:flex; align-items:center; justify-content:center;
-  pointer-events:none;
 }
-#frame {
-  width:55%; aspect-ratio:1/1; position:relative;
+.s-frame {
+  width: 60%; aspect-ratio:1/1; position:relative;
 }
-#frame::before, #frame::after, #frame span::before, #frame span::after {
-  content:''; position:absolute; width:22px; height:22px;
-  border-color: var(--accent); border-style:solid;
-  border-radius:2px;
+.s-frame::before,.s-frame::after,.s-frame i::before,.s-frame i::after {
+  content:''; position:absolute; width:24px; height:24px;
+  border-color:var(--green); border-style:solid; border-radius:3px;
 }
-#frame::before  { top:0;    left:0;  border-width:3px 0 0 3px; }
-#frame::after   { top:0;    right:0; border-width:3px 3px 0 0; }
-#frame span::before { bottom:0; left:0;  border-width:0 0 3px 3px; }
-#frame span::after  { bottom:0; right:0; border-width:0 3px 3px 0; }
-
-@keyframes scan-pulse {
-  0%,100% { box-shadow:0 0 0 0 rgba(34,197,94,0); }
-  50% { box-shadow:0 0 0 6px rgba(34,197,94,0.15); }
+.s-frame::before  { top:0;    left:0;  border-width:3px 0 0 3px; }
+.s-frame::after   { top:0;    right:0; border-width:3px 3px 0 0; }
+.s-frame i::before{ bottom:0; left:0;  border-width:0 0 3px 3px; }
+.s-frame i::after { bottom:0; right:0; border-width:0 3px 3px 0; }
+@keyframes sline { 0%{top:2%}90%{top:98%}100%{top:98%,opacity:0} }
+.s-line {
+  position:absolute; left:3%; right:3%; height:2px; top:0;
+  background:linear-gradient(90deg,transparent,var(--green),transparent);
+  animation: sline 2s ease-in-out infinite;
 }
-#frame.scanning { animation: scan-pulse 2s infinite; }
-
-.scan-line {
-  position:absolute; left:5%; right:5%; height:2px; top:0;
-  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
-  animation: line-move 2s ease-in-out infinite;
-  border-radius:2px;
-}
-@keyframes line-move {
-  0%   { top:0%; opacity:0; }
-  10%  { opacity:1; }
-  90%  { opacity:1; }
-  100% { top:100%; opacity:0; }
-}
-
-/* Flash effect */
+@keyframes flash-anim { from{opacity:.5} to{opacity:0} }
 #flash {
   position:absolute; inset:0; pointer-events:none;
-  background: rgba(34,197,94,0);
-  transition: background 0.05s;
+  background:var(--green); opacity:0;
 }
-#flash.fire { background: rgba(34,197,94,0.35); }
+#flash.go { animation: flash-anim .25s ease-out forwards; }
 
-/* Camera controls */
-#cam-ctrl {
-  background: var(--bg2);
-  padding: 8px 12px;
-  display:flex; gap:8px; align-items:center;
-  border-bottom: 1px solid var(--border);
-  flex-shrink:0;
+/* Status below frame */
+#stat-bar {
+  position:absolute; bottom:0; left:0; right:0;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
+  padding:7px 14px; display:flex; align-items:center; gap:8px;
 }
-#cam-select {
-  flex:1; background: var(--bg3); color: var(--text);
-  border: 1px solid var(--border); border-radius:8px;
+#stat-dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+#stat-dot.ok    { background:var(--green);  box-shadow:0 0 8px var(--green); }
+#stat-dot.dup   { background:var(--gold); }
+#stat-dot.err   { background:var(--red); }
+#stat-dot.scan  { background:var(--green); animation:blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+#stat-txt { font-size:11px; color:#cbd5e1; flex:1; }
+
+/* ── CONTROLS ── */
+#ctrl {
+  flex-shrink:0;
+  background:var(--bg2); padding:8px 12px;
+  display:flex; gap:8px; align-items:center;
+  border-bottom:1px solid var(--border);
+}
+#cam-sel {
+  flex:1; background:var(--bg3); color:var(--text);
+  border:1px solid var(--border); border-radius:8px;
   padding:7px 10px; font-size:12px; font-family:inherit;
 }
-.cam-btn {
+.cbtn {
   padding:8px 14px; border:none; border-radius:8px;
   font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;
-  transition: all 0.2s;
 }
-#btn-start { background: linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; }
-#btn-start:active { transform:scale(0.96); }
-#btn-stop  { background: var(--bg3); color: var(--muted); border:1px solid var(--border); }
+#btn-go   { background:linear-gradient(135deg,var(--green),var(--green2)); color:#fff; }
+#btn-stop { background:var(--bg3); color:var(--muted); border:1px solid var(--border); }
 
-/* Status bar */
-#status-bar {
-  position:absolute; bottom:0; left:0; right:0;
-  background: rgba(0,0,0,0.65); backdrop-filter:blur(4px);
-  padding: 6px 12px; display:flex; align-items:center; gap:8px;
+/* ── LIST (scrollable, rest of space) ── */
+#list-wrap {
+  flex: 1 1 0;
+  display: flex; flex-direction: column;
+  min-height: 0; /* important for flex scroll child */
 }
-#status-dot {
-  width:8px; height:8px; border-radius:50%;
-  background: var(--muted); flex-shrink:0;
-  transition: background 0.3s;
-}
-#status-dot.ok  { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-#status-dot.dup { background: var(--gold); }
-#status-dot.err { background: var(--red); }
-#status-dot.active { background: var(--accent); animation: pulse-dot 1.5s infinite; }
-@keyframes pulse-dot {
-  0%,100% { opacity:1; } 50% { opacity:0.4; }
-}
-#status-text { font-size:11px; color:#cbd5e1; flex:1; }
-
-/* ── LIST ── */
-#list-section {
-  flex:1; overflow-y:auto; overscroll-behavior:contain;
-  padding-bottom: 90px;
-}
-#list-header {
-  background: var(--bg2);
-  padding: 8px 16px;
+#list-head {
+  flex-shrink:0;
+  background:var(--bg2); padding:7px 14px;
   display:flex; justify-content:space-between; align-items:center;
-  border-bottom: 1px solid var(--border);
-  position:sticky; top:0; z-index:10;
+  border-bottom:1px solid var(--border);
 }
-#list-count { font-size:11px; color:var(--muted); font-weight:500; }
-#btn-clear {
+#list-cnt  { font-size:11px; color:var(--muted); font-weight:500; }
+#btn-clr {
   padding:4px 10px; background:transparent; color:#f87171;
-  border:1px solid #f8717155; border-radius:6px; font-size:11px;
-  cursor:pointer; font-family:inherit;
+  border:1px solid #f8717155; border-radius:6px; font-size:11px; cursor:pointer; font-family:inherit;
 }
-
-#code-list { }
-.c-item {
-  padding: 10px 16px; border-bottom: 1px solid var(--border);
-  display:flex; align-items:center; gap:10px;
-  background: var(--bg);
-  transition: background 0.4s;
+#code-list {
+  flex:1; overflow-y:auto; overscroll-behavior:contain;
+  padding-bottom:80px;
 }
-.c-item:nth-child(even) { background: var(--bg2); }
-@keyframes item-in {
-  from { background: rgba(34,197,94,0.2); transform:translateX(-10px); opacity:0; }
-  to   { background: var(--bg); transform:translateX(0); opacity:1; }
+.ci {
+  padding:9px 14px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:9px; background:var(--bg);
 }
-.c-item.new { animation: item-in 0.4s ease-out; }
-.c-num { color:var(--muted); font-size:11px; min-width:22px; font-weight:600; }
-.c-info { flex:1; overflow:hidden; }
-.c-code { font-family:monospace; font-size:10px; color:#86efac; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.c-meta { font-size:9px; color:var(--muted); margin-top:2px; }
-.c-type {
-  font-size:9px; padding:2px 6px; border-radius:4px; font-weight:600;
-}
-.c-type.std { background:#14532d; color:#86efac; }
-.c-type.short { background:#713f12; color:#fef08a; }
-.c-type.unk { background:#1e1e2e; color:#94a3b8; }
-.c-del { color:#ef444488; font-size:20px; cursor:pointer; padding:0 4px; line-height:1; }
-.c-del:active { color:var(--red); }
-
+.ci:nth-child(even){ background:var(--bg2); }
+@keyframes ci-in { from{transform:translateX(-8px);opacity:0} to{transform:none;opacity:1} }
+.ci.new { animation:ci-in .35s ease-out; }
+.ci-n { color:var(--muted); font-size:11px; min-width:20px; font-weight:600; }
+.ci-info { flex:1; overflow:hidden; }
+.ci-code { font-family:monospace; font-size:10px; color:#86efac; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ci-meta { font-size:9px; color:var(--muted); margin-top:2px; }
+.ci-type { font-size:9px; padding:1px 5px; border-radius:3px; font-weight:600; }
+.ci-type.std   { background:#14532d; color:#86efac; }
+.ci-type.short { background:#713f12; color:#fef08a; }
+.ci-del { color:#ef444466; font-size:20px; cursor:pointer; padding:0 4px; }
+.ci-del:active { color:var(--red); }
 #empty {
-  padding:48px 24px; text-align:center; color:var(--muted);
+  padding:32px 20px; text-align:center; color:var(--muted);
 }
-#empty .empty-icon { font-size:48px; margin-bottom:12px; opacity:0.4; }
-#empty p { font-size:13px; line-height:1.6; }
+.ei { font-size:36px; margin-bottom:8px; opacity:.4; }
 
-/* ── EXPORT BAR ── */
-#export-bar {
+/* ── EXPORT ── */
+#exp-bar {
   position:fixed; bottom:0; left:0; right:0;
-  background: linear-gradient(180deg, transparent 0%, var(--bg2) 30%);
-  padding: 8px 16px 16px;
+  background:linear-gradient(180deg,transparent,var(--bg2) 40%);
+  padding:8px 14px 14px;
   display:flex; gap:8px;
 }
-#btn-export {
-  flex:1; padding:14px;
-  background: linear-gradient(135deg,#166534,#15803d);
-  color:#fff; border:none; border-radius:12px;
-  font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;
-  box-shadow: 0 4px 20px rgba(22,163,74,0.3);
-  transition: all 0.2s;
+#btn-exp {
+  flex:1; padding:13px; border:none; border-radius:12px;
+  background:linear-gradient(135deg,#166534,#15803d);
+  color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;
+  box-shadow:0 4px 20px rgba(22,163,74,.3);
   display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:transform .15s;
 }
-#btn-export:active { transform:scale(0.97); }
-#btn-export:disabled {
-  background: var(--bg3); color:var(--muted);
-  box-shadow:none; cursor:not-allowed;
-}
-#export-sub { font-size:9px; font-weight:400; opacity:0.7; display:block; }
+#btn-exp:active { transform:scale(.97); }
+#btn-exp:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
+#exp-sub { font-size:9px; font-weight:400; opacity:.7; }
 
-/* Notification toast */
 #toast {
-  position:fixed; top:70px; left:50%; transform:translateX(-50%) translateY(-20px);
-  background: var(--bg3); border:1px solid var(--border);
-  border-radius:10px; padding:10px 18px;
-  font-size:13px; color:var(--text);
-  opacity:0; pointer-events:none;
-  transition: all 0.25s;
-  z-index:999; white-space:nowrap;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
+  background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+  padding:9px 18px; font-size:13px; opacity:0; pointer-events:none;
+  transition:all .25s; z-index:999; white-space:nowrap;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
 }
-#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
 
 <!-- TOP BAR -->
 <div id="topbar">
-  <div id="topbar-left">
-    <div id="topbar-logo">🏷️</div>
-    <div>
-      <div id="topbar-h1" style="font-size:15px;font-weight:700;color:#f1f5f9;">КМ Сканер</div>
-      <div style="font-size:10px;color:var(--muted);">Честный знак → CSV</div>
-    </div>
+  <div class="tb-left">
+    <div class="tb-icon">🏷️</div>
+    <div><div class="tb-title">КМ Сканер</div><div class="tb-sub">Честный знак → CSV</div></div>
   </div>
   <div id="badge">0 шт</div>
 </div>
 
-<!-- CAMERA -->
-<div id="cam-block" class="portrait">
-  <video id="video" playsinline muted autoplay></video>
-  <div id="overlay">
-    <div id="frame"><span></span><div class="scan-line"></div></div>
-  </div>
+<!-- SCANNER -->
+<div id="scanner-wrap">
+  <div id="qr-reader"></div>
+  <div id="scan-overlay"><div class="s-frame"><i></i><div class="s-line"></div></div></div>
   <div id="flash"></div>
-  <div id="status-bar">
-    <div id="status-dot"></div>
-    <div id="status-text">Нажмите «Старт» для сканирования</div>
+  <div id="stat-bar">
+    <div id="stat-dot"></div>
+    <div id="stat-txt">Нажмите «Старт»</div>
   </div>
 </div>
 
 <!-- CONTROLS -->
-<div id="cam-ctrl">
-  <select id="cam-select"><option value="">📷 Загрузка камер...</option></select>
-  <button class="cam-btn" id="btn-start" onclick="startScan()">▶ Старт</button>
-  <button class="cam-btn" id="btn-stop"  onclick="stopScan()">⏹</button>
+<div id="ctrl">
+  <select id="cam-sel"><option value="">📷 Камера...</option></select>
+  <button class="cbtn" id="btn-go"   onclick="startScan()">▶ Старт</button>
+  <button class="cbtn" id="btn-stop" onclick="stopScan()">⏹</button>
 </div>
 
 <!-- LIST -->
-<div id="list-section">
-  <div id="list-header">
-    <span id="list-count">Список пуст</span>
-    <button id="btn-clear" onclick="clearAll()">🗑 Очистить</button>
+<div id="list-wrap">
+  <div id="list-head">
+    <span id="list-cnt">Список пуст</span>
+    <button id="btn-clr" onclick="clearAll()">🗑 Очистить</button>
   </div>
   <div id="code-list">
-    <div id="empty">
-      <div class="empty-icon">📷</div>
-      <p>Наведите камеру на DataMatrix-код<br>на этикетке Честного знака</p>
-    </div>
+    <div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>
   </div>
 </div>
 
 <!-- EXPORT -->
-<div id="export-bar">
-  <button id="btn-export" onclick="downloadCSV()" disabled>
-    <span>⬇️ Скачать CSV</span>
-    <span id="export-sub">для загрузки на портал ЧЗ</span>
+<div id="exp-bar">
+  <button id="btn-exp" onclick="dlCSV()" disabled>
+    ⬇️ Скачать CSV <span id="exp-sub">для портала ЧЗ</span>
   </button>
 </div>
 
 <div id="toast"></div>
 
-<!-- ZXing library -->
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<!-- html5-qrcode: лучше читает DataMatrix на мобильных -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-// ── Constants ─────────────────────────────────────────────────
 const GS = '\u001d';
-const COOLDOWN = 2500;
-
-// ── State ─────────────────────────────────────────────────────
 let codes = [];
-let reader = null;
+let scanner = null;
 let scanning = false;
 let lastRaw = '';
 let lastTime = 0;
+const COOLDOWN = 2500;
 
-// ── Code conversion (from km_converter logic) ─────────────────
-function normalizeCode(raw) {
-  return raw
-    .replace(/<GS>/g, GS)
-    .replace(/\[GS\]/g, GS)
-    .replace(/\\x1d/gi, GS)
-    .replace(/\\u001d/gi, GS);
-}
-
-function convertToCSV(code) {
-  // Code is already in correct format with real GS chars.
-  // Portal ЧЗ expects: full KM code with GS separators as-is.
-  return code;
-}
-
-function detectType(code) {
-  if (code.includes(GS + '91') && code.includes(GS + '92')) return 'std';
-  if (code.includes(GS + '93')) return 'short';
-  if (/\u001d91/.test(code)) return 'std';
-  return 'unk';
-}
-
-function typeLabel(t) {
-  if (t === 'std')   return '<span class="c-type std">91/92</span>';
-  if (t === 'short') return '<span class="c-type short">93</span>';
-  return '<span class="c-type unk">?</span>';
-}
-
-// ── Camera ────────────────────────────────────────────────────
-async function initCameras() {
+// ── Camera list ───────────────────────────────────────────────
+async function initCams() {
   try {
-    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-    const sel = document.getElementById('cam-select');
+    const devices = await Html5Qrcode.getCameras();
+    const sel = document.getElementById('cam-sel');
     sel.innerHTML = '';
-    if (devices.length === 0) {
+    if (!devices || devices.length === 0) {
       sel.innerHTML = '<option>Камера не найдена</option>';
       return;
     }
-    let backIdx = -1;
+    let backIdx = 0;
     devices.forEach((d, i) => {
-      const opt = document.createElement('option');
-      opt.value = d.deviceId;
-      opt.textContent = d.label || `Камера ${i+1}`;
-      const lbl = d.label.toLowerCase();
-      if (lbl.includes('back') || lbl.includes('rear') ||
-          lbl.includes('environment') || lbl.includes('задн')) {
-        backIdx = i;
-      }
-      sel.appendChild(opt);
+      const o = document.createElement('option');
+      o.value = d.id;
+      o.textContent = d.label || `Камера ${i+1}`;
+      if (/back|rear|environment|задн/i.test(d.label)) backIdx = i;
+      sel.appendChild(o);
     });
-    if (backIdx >= 0) sel.selectedIndex = backIdx;
-    // Auto-start on mobile
+    sel.selectedIndex = backIdx;
+    // auto-start on mobile
     if (/Android|iPhone|iPad/i.test(navigator.userAgent)) startScan();
   } catch(e) {
-    setStatus('Нет доступа к камере', 'err');
+    setStat('Ошибка камеры: ' + e.message, 'err');
   }
 }
 
+// ── Start scanning ────────────────────────────────────────────
 async function startScan() {
   if (scanning) return;
+  const camId = document.getElementById('cam-sel').value;
+  if (!camId) { setStat('Выберите камеру', 'err'); return; }
+
   try {
-    reader = new ZXing.BrowserMultiFormatReader();
-    const deviceId = document.getElementById('cam-select').value || undefined;
+    scanner = new Html5Qrcode('qr-reader', { verbose: false });
 
-    // No custom hints - let ZXing auto-detect all formats including DataMatrix
+    const config = {
+      fps: 15,
+      // No fixed qrbox — let it use the full viewfinder
+      aspectRatio: 1.0,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.EAN_13,
+      ],
+    };
 
+    await scanner.start(camId, config, onScanSuccess, onScanError);
     scanning = true;
-    document.getElementById('frame').classList.add('scanning');
-    setStatus('Наведите камеру на DataMatrix...', 'active');
-
-    await reader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
-      if (!result) return;
-      const now = Date.now();
-      const raw = result.getText();
-      if (raw === lastRaw && now - lastTime < COOLDOWN) return;
-      lastRaw = raw;
-      lastTime = now;
-      handleScan(raw);
-    });
+    setStat('Наводите камеру на DataMatrix...', 'scan');
+    document.getElementById('btn-go').style.opacity = '.4';
   } catch(e) {
-    scanning = false;
-    setStatus('Ошибка: ' + e.message, 'err');
+    setStat('Ошибка: ' + e, 'err');
   }
 }
 
-function stopScan() {
-  if (reader) { try { reader.reset(); } catch(e) {} reader = null; }
-  scanning = false;
-  document.getElementById('frame').classList.remove('scanning');
-  setStatus('Остановлено', '');
+function onScanSuccess(decoded) {
+  const now = Date.now();
+  if (decoded === lastRaw && now - lastTime < COOLDOWN) return;
+  lastRaw = decoded;
+  lastTime = now;
+  handleCode(decoded);
 }
 
-// ── Scan handler ──────────────────────────────────────────────
-function handleScan(raw) {
-  let code = normalizeCode(raw);
+function onScanError() { /* ignore per-frame errors */ }
 
-  // Strip GS1 DataMatrix prefixes that ZXing may prepend:
-  // ]d2  — AIM symbology identifier for GS1 DataMatrix
-  // ]C1  — GS1-128
-  // leading \xE8 (FNC1), \x1D (GS), or other non-digit chars before '01'
-  code = code.replace(/^\]d[0-9]/, '')   // ]d0 ]d1 ]d2
-             .replace(/^\]C[0-9]/, '')   // ]C1
-             .replace(/^\]e[0-9]/, '')   // ]e0
-             .replace(/^[^0-9(]+/, '');  // any leading non-digit/non-paren chars
+// ── Stop ──────────────────────────────────────────────────────
+async function stopScan() {
+  if (scanner && scanning) {
+    try { await scanner.stop(); } catch(e) {}
+  }
+  scanning = false;
+  setStat('Остановлено', '');
+  document.getElementById('btn-go').style.opacity = '1';
+}
 
-  // DEBUG: show first 30 chars of what was read (visible in status for 3s)
-  const preview = code.slice(0, 28).replace(new RegExp(GS, 'g'), '[GS]');
+// ── Code processing ───────────────────────────────────────────
+function handleCode(raw) {
+  // Normalize textual GS variants
+  let code = raw
+    .replace(/<GS>/g,   GS)
+    .replace(/\[GS\]/g, GS)
+    .replace(/\\x1d/gi, GS)
+    .replace(/\\u001d/gi, GS);
 
-  // Must contain '01' + 14-digit GTIN somewhere near start
-  const gtinMatch = code.match(/^01(\d{14})/);
-  if (!gtinMatch || code.length < 25) {
-    setStatus(`❓ Читаю: ${preview}`, 'err');
+  // Strip GS1 symbology prefixes (]d2, ]C1, FNC1 chars, etc.)
+  code = code
+    .replace(/^\]d[0-9]/,  '')
+    .replace(/^\]C[0-9]/,  '')
+    .replace(/^\]e[0-9]/,  '')
+    .replace(/^[^\d(]+/,   '');  // strip any non-digit/non-paren leading chars
+
+  // Must start with 01 + 14-digit GTIN
+  const m = code.match(/^01(\d{14})/);
+  if (!m) {
+    // Show what we actually read — useful for debugging
+    const preview = raw.slice(0, 24).replace(new RegExp(GS,'g'),'[GS]');
+    setStat(`❓ Читаю: "${preview}"`, 'err');
     return;
   }
 
+  // Duplicate check
   if (codes.some(c => c.raw === code)) {
-    setStatus('⚠️ Дубль — уже в списке', 'dup');
+    setStat('⚠️ Дубль — уже в списке', 'dup');
     vibrate([80, 40, 80]);
     return;
   }
 
-  const type = detectType(code);
-  const gtin = gtinMatch[1];
-  const afterGtin = code.slice(18);
-  const gsPos = afterGtin.indexOf(GS);
-  const serial = afterGtin.slice(0, gsPos > 0 ? gsPos : undefined);
+  const gtin = m[1];
+  const rest  = code.slice(18);
+  const gsPos = rest.indexOf(GS);
+  const serial = rest.slice(0, gsPos > 0 ? gsPos : undefined);
+  const type  = code.includes(GS+'91') ? 'std'
+              : code.includes(GS+'93') ? 'short'
+              : 'unk';
 
-  codes.push({ raw: code, type, gtin, serial, ts: Date.now() });
-  setStatus(`✅ Добавлен #${codes.length}: ${gtin}`, 'ok');
+  codes.push({ raw: code, gtin, serial, type });
+  setStat(`✅ #${codes.length} GTIN: ${gtin}`, 'ok');
   vibrate([200]);
-  flash();
+  doFlash();
   renderList();
 }
 
-// ── UI helpers ────────────────────────────────────────────────
-function setStatus(msg, cls) {
-  document.getElementById('status-text').textContent = msg;
-  document.getElementById('status-dot').className = cls || '';
+// ── UI ────────────────────────────────────────────────────────
+function setStat(msg, cls) {
+  document.getElementById('stat-txt').textContent = msg;
+  document.getElementById('stat-dot').className = cls || '';
 }
-
-function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
-
-function flash() {
+function vibrate(p) { navigator.vibrate?.(p); }
+function doFlash() {
   const el = document.getElementById('flash');
-  el.classList.add('fire');
-  setTimeout(() => el.classList.remove('fire'), 200);
+  el.classList.remove('go');
+  void el.offsetWidth;
+  el.classList.add('go');
 }
-
-function showToast(msg) {
+function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2200);
 }
 
-// ── Render ────────────────────────────────────────────────────
+// ── Render list ───────────────────────────────────────────────
 function renderList() {
-  const list  = document.getElementById('code-list');
+  const list = document.getElementById('code-list');
   const badge = document.getElementById('badge');
-  const count = document.getElementById('list-count');
-  const btnEx = document.getElementById('btn-export');
-
+  const cnt   = document.getElementById('list-cnt');
+  const btnE  = document.getElementById('btn-exp');
   const n = codes.length;
+
   badge.textContent = n + ' шт';
-  badge.className = n > 0 ? 'has' : '';
-  count.textContent = n > 0 ? `Кодов: ${n}` : 'Список пуст';
-  btnEx.disabled = n === 0;
+  badge.className = n > 0 ? 'on' : '';
+  cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
+  btnE.disabled    = n === 0;
 
   if (n === 0) {
-    list.innerHTML = `<div id="empty">
-      <div class="empty-icon">📷</div>
-      <p>Наведите камеру на DataMatrix-код<br>на этикетке Честного знака</p>
-    </div>`;
+    list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
     return;
   }
 
+  const typeMap = { std:'std', short:'short', unk:'unk' };
   list.innerHTML = codes.map((c, i) => {
-    const disp = c.raw.replace(new RegExp(GS, 'g'), '[GS]');
-    const short = disp.length > 44 ? disp.slice(0, 41) + '…' : disp;
+    const disp  = c.raw.replace(new RegExp(GS,'g'), '[GS]');
+    const short = disp.length > 44 ? disp.slice(0,41) + '…' : disp;
+    const tl    = c.type === 'std'   ? '<span class="ci-type std">91/92</span>'
+                : c.type === 'short' ? '<span class="ci-type short">93</span>'
+                : '<span class="ci-type unk">?</span>';
     const isNew = i === codes.length - 1;
-    return `<div class="c-item${isNew ? ' new' : ''}" id="ci${i}">
-      <span class="c-num">${i+1}</span>
-      <div class="c-info">
-        <div class="c-code" title="${disp}">${short}</div>
-        <div class="c-meta">GTIN: ${c.gtin} &nbsp;|&nbsp; ${typeLabel(c.type)}</div>
+    return `<div class="ci${isNew?' new':''}">
+      <span class="ci-n">${i+1}</span>
+      <div class="ci-info">
+        <div class="ci-code" title="${disp}">${short}</div>
+        <div class="ci-meta">GTIN: ${c.gtin} &nbsp;${tl}</div>
       </div>
-      <span class="c-del" onclick="removeCode(${i})">×</span>
+      <span class="ci-del" onclick="delCode(${i})">×</span>
     </div>`;
   }).join('');
 
   list.lastElementChild?.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
-function removeCode(idx) {
-  codes.splice(idx, 1);
+function delCode(i) {
+  codes.splice(i, 1);
   renderList();
-  showToast('Код удалён');
+  toast('Код удалён');
 }
 
 function clearAll() {
-  if (codes.length === 0) return;
+  if (!codes.length) return;
   if (!confirm(`Удалить все ${codes.length} кодов?`)) return;
-  codes = [];
-  lastRaw = '';
+  codes = []; lastRaw = '';
   renderList();
-  showToast('Список очищен');
+  toast('Список очищен');
 }
 
-// ── CSV Export ────────────────────────────────────────────────
-function downloadCSV() {
-  if (codes.length === 0) return;
-  // One code per line with real GS chars — as portal expects
+// ── Export ────────────────────────────────────────────────────
+function dlCSV() {
+  if (!codes.length) return;
   const content = codes.map(c => c.raw).join('\n') + '\n';
-  const blob = new Blob([new TextEncoder().encode(content)], { type:'text/plain;charset=utf-8' });
+  const blob = new Blob([new TextEncoder().encode(content)], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
-  const date = new Date().toISOString().slice(0,10);
-  a.download = `km_codes_${codes.length}шт_${date}.csv`;
+  a.download = `km_codes_${codes.length}шт_${new Date().toISOString().slice(0,10)}.csv`;
   a.href = URL.createObjectURL(blob);
   a.click();
   URL.revokeObjectURL(a.href);
-  showToast(`✅ CSV скачан (${codes.length} кодов)`);
+  toast(`✅ CSV скачан (${codes.length} кодов)`);
 }
 
 // ── Init ──────────────────────────────────────────────────────
-initCameras();
+initCams();
 renderList();
 </script>
 </body>
