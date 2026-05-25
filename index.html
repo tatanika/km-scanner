@@ -677,10 +677,7 @@ function dlXLSX() {
     return [shortCode];
   });
 
-  const ws = XLSX.utils.aoa_to_sheet([
-    ['Код маркировки'],  // header
-    ...rows
-  ]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
 
   // Set column width
   ws['!cols'] = [{ wch: 36 }];
@@ -702,7 +699,7 @@ function _makeCSVFile(n, date) {
 function _makeXLSXFile(n, date) {
   if (typeof XLSX === 'undefined') return null;
   const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
-  const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+  const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [{ wch: 36 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Коды');
@@ -758,7 +755,7 @@ function shareZIP() {
   let xlsxBytes = null;
   if (typeof XLSX !== 'undefined') {
     const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
-    const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 36 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Коды');
@@ -897,7 +894,7 @@ async function uploadYaDisk() {
     // Upload XLSX
     if (typeof XLSX !== 'undefined') {
       const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
-      const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+      const ws = XLSX.utils.aoa_to_sheet(rows);
       ws['!cols'] = [{ wch: 36 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Коды');
