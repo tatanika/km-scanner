@@ -391,13 +391,7 @@ async function startScan() {
     reader = new ZXing.BrowserMultiFormatReader();
     const deviceId = document.getElementById('cam-select').value || undefined;
 
-    // Hints: prefer DataMatrix
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.DATA_MATRIX,
-      ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.CODE_128,
-    ]);
+    // No custom hints - let ZXing auto-detect all formats including DataMatrix
 
     scanning = true;
     document.getElementById('frame').classList.add('scanning');
@@ -427,12 +421,27 @@ function stopScan() {
 
 // ── Scan handler ──────────────────────────────────────────────
 function handleScan(raw) {
-  const code = normalizeCode(raw);
+  let code = normalizeCode(raw);
 
-  if (!code.startsWith('01') || code.length < 30) {
-    setStatus('Не КМ-код — игнорирую', 'err');
+  // Strip GS1 DataMatrix prefixes that ZXing may prepend:
+  // ]d2  — AIM symbology identifier for GS1 DataMatrix
+  // ]C1  — GS1-128
+  // leading \xE8 (FNC1), \x1D (GS), or other non-digit chars before '01'
+  code = code.replace(/^\]d[0-9]/, '')   // ]d0 ]d1 ]d2
+             .replace(/^\]C[0-9]/, '')   // ]C1
+             .replace(/^\]e[0-9]/, '')   // ]e0
+             .replace(/^[^0-9(]+/, '');  // any leading non-digit/non-paren chars
+
+  // DEBUG: show first 30 chars of what was read (visible in status for 3s)
+  const preview = code.slice(0, 28).replace(new RegExp(GS, 'g'), '[GS]');
+
+  // Must contain '01' + 14-digit GTIN somewhere near start
+  const gtinMatch = code.match(/^01(\d{14})/);
+  if (!gtinMatch || code.length < 25) {
+    setStatus(`❓ Читаю: ${preview}`, 'err');
     return;
   }
+
   if (codes.some(c => c.raw === code)) {
     setStatus('⚠️ Дубль — уже в списке', 'dup');
     vibrate([80, 40, 80]);
@@ -440,11 +449,13 @@ function handleScan(raw) {
   }
 
   const type = detectType(code);
-  const gtin = code.slice(2, 16);
-  const serial = code.slice(18, code.indexOf(GS) > 0 ? code.indexOf(GS) : code.length);
+  const gtin = gtinMatch[1];
+  const afterGtin = code.slice(18);
+  const gsPos = afterGtin.indexOf(GS);
+  const serial = afterGtin.slice(0, gsPos > 0 ? gsPos : undefined);
 
   codes.push({ raw: code, type, gtin, serial, ts: Date.now() });
-  setStatus(`✅ Добавлен код #${codes.length}`, 'ok');
+  setStatus(`✅ Добавлен #${codes.length}: ${gtin}`, 'ok');
   vibrate([200]);
   flash();
   renderList();
