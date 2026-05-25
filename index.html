@@ -226,6 +226,16 @@ body {
 #btn-xlsx:active { transform:scale(.97); }
 #btn-xlsx:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
 .exp-sub { font-size:9px; font-weight:400; opacity:.7; display:block; }
+#btn-share {
+  width:100%; padding:11px; border:none; border-radius:12px;
+  background:linear-gradient(135deg,#4a1d96,#7c3aed);
+  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+  box-shadow:0 4px 20px rgba(124,58,237,.3);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:transform .15s;
+}
+#btn-share:active { transform:scale(.97); }
+#btn-share:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
 
 #toast {
   position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
@@ -287,6 +297,9 @@ body {
       📊 XLSX <span class="exp-sub">ввод в оборот</span>
     </button>
   </div>
+  <button id="btn-share" onclick="shareFiles()" disabled>
+    📤 Поделиться — отправить на компьютер
+  </button>
 </div>
 
 <div id="toast"></div>
@@ -507,7 +520,8 @@ function renderList() {
   document.getElementById('badge').className = n > 0 ? 'on' : '';
   cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
   btnE.disabled    = n === 0;
-  document.getElementById('btn-xlsx').disabled = n === 0;
+  document.getElementById('btn-xlsx').disabled  = n === 0;
+  document.getElementById('btn-share').disabled = n === 0;
 
   if (n === 0) {
     list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
@@ -587,6 +601,62 @@ function dlXLSX() {
   const date = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, `km_vvod_${codes.length}шт_${date}.xlsx`);
   toast(`✅ XLSX скачан (${codes.length} кодов)`);
+}
+
+async function shareFiles() {
+  if (!codes.length) return;
+  const date = new Date().toISOString().slice(0,10);
+
+  // Build CSV blob
+  const csvContent = codes.map(c => c.raw).join('\n') + '\n';
+  const csvBlob = new Blob([new TextEncoder().encode(csvContent)], {type:'text/plain;charset=utf-8'});
+  const csvFile = new File([csvBlob], `km_codes_${codes.length}шт_${date}.csv`, {type:'text/plain'});
+
+  // Build XLSX blob
+  let xlsxFile = null;
+  if (typeof XLSX !== 'undefined') {
+    const rows = codes.map(c => ['01' + c.gtin + '21' + c.serial]);
+    const ws = XLSX.utils.aoa_to_sheet([['Код маркировки'], ...rows]);
+    ws['!cols'] = [{ wch: 36 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Коды');
+    const xlsxData = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const xlsxBlob = new Blob([xlsxData], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    xlsxFile = new File([xlsxBlob], `km_vvod_${codes.length}шт_${date}.xlsx`, {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+
+  const filesToShare = xlsxFile ? [csvFile, xlsxFile] : [csvFile];
+
+  // Try Web Share API (Android/iOS native share sheet)
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: filesToShare })) {
+    try {
+      await navigator.share({
+        title: `КМ Коды ${codes.length} шт — ${date}`,
+        text: `Отсканировано ${codes.length} кодов маркировки`,
+        files: filesToShare,
+      });
+      toast('✅ Файлы отправлены!');
+    } catch(e) {
+      if (e.name !== 'AbortError') toast('Ошибка: ' + e.message);
+    }
+  } else {
+    // Fallback — just download both
+    toast('Поделиться недоступно, скачиваю файлы...');
+    // download CSV
+    const a1 = document.createElement('a');
+    a1.href = URL.createObjectURL(csvBlob);
+    a1.download = csvFile.name;
+    a1.click();
+    URL.revokeObjectURL(a1.href);
+    // download XLSX after short delay
+    if (xlsxFile) setTimeout(() => {
+      const a2 = document.createElement('a');
+      a2.href = URL.createObjectURL(xlsxFile);
+      a2.download = xlsxFile.name;
+      a2.click();
+      URL.revokeObjectURL(a2.href);
+    }, 500);
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────
