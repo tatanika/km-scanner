@@ -539,6 +539,7 @@ function renderList() {
   document.getElementById('btn-shr-csv').disabled  = n === 0;
   document.getElementById('btn-shr-xlsx').disabled = n === 0;
   document.getElementById('btn-shr-zip').disabled  = n === 0;
+  if (typeof updateYaDiskUI === 'function') updateYaDiskUI();
 
   if (n === 0) {
     list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
