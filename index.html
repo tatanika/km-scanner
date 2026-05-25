@@ -760,8 +760,19 @@ const YA_CLIENT = '3583350714d54c69a084a370e643b079';
 const YA_FOLDER = 'disk:/Компьютер WOODLEAF/Лазерная резка/маркетплейсы/коды ЧЗ';
 
 function yadiskLogin() {
-  const url = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
-  window.location.href = url;
+  const token = getYaToken();
+  if (token) {
+    const choice = confirm('Яндекс.Диск уже подключён.\n\nOK — переподключить\nОтмена — отключить Диск');
+    if (choice) {
+      window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
+    } else {
+      localStorage.removeItem('ya_token');
+      updateYaDiskUI();
+      toast('Яндекс.Диск отключён');
+    }
+  } else {
+    window.location.href = `https://oauth.yandex.ru/authorize?response_type=token&client_id=${YA_CLIENT}`;
+  }
 }
 
 function getYaToken() { return localStorage.getItem('ya_token'); }
