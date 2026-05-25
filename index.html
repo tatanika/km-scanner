@@ -50,11 +50,13 @@ body {
 .tb-sub   { font-size:10px; color:var(--muted); }
 #badge {
   background: var(--bg3); border:1px solid var(--border);
-  border-radius:16px; padding:4px 12px;
-  font-size:14px; font-weight:700; color:var(--muted);
-  transition: all .3s;
+  border-radius:16px; padding:5px 16px;
+  font-size:22px; font-weight:800; color:var(--muted);
+  transition: all .3s; min-width:72px; text-align:center;
+  line-height:1.2;
 }
-#badge.on { background:linear-gradient(135deg,#14532d,#166534); border-color:#22c55e55; color:#86efac; }
+#badge .badge-unit { font-size:11px; font-weight:500; opacity:.7; display:block; }
+#badge.on { background:linear-gradient(135deg,#14532d,#166534); border-color:#22c55e77; color:#86efac; }
 
 /* ── SCANNER AREA (big, ~62% of screen) ── */
 #scanner-wrap {
@@ -200,19 +202,30 @@ body {
   position:fixed; bottom:0; left:0; right:0;
   background:linear-gradient(180deg,transparent,var(--bg2) 40%);
   padding:8px 14px 14px;
-  display:flex; gap:8px;
+  display:flex; gap:8px; flex-direction:column;
 }
+#exp-row { display:flex; gap:8px; }
 #btn-exp {
   flex:1; padding:13px; border:none; border-radius:12px;
   background:linear-gradient(135deg,#166534,#15803d);
-  color:#fff; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;
+  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
   box-shadow:0 4px 20px rgba(22,163,74,.3);
-  display:flex; align-items:center; justify-content:center; gap:8px;
+  display:flex; align-items:center; justify-content:center; gap:6px;
   transition:transform .15s;
 }
 #btn-exp:active { transform:scale(.97); }
 #btn-exp:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
-#exp-sub { font-size:9px; font-weight:400; opacity:.7; }
+#btn-xlsx {
+  flex:1; padding:13px; border:none; border-radius:12px;
+  background:linear-gradient(135deg,#1e3a5f,#1d4ed8);
+  color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+  box-shadow:0 4px 20px rgba(29,78,216,.3);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  transition:transform .15s;
+}
+#btn-xlsx:active { transform:scale(.97); }
+#btn-xlsx:disabled { background:var(--bg3); color:var(--muted); box-shadow:none; cursor:not-allowed; }
+.exp-sub { font-size:9px; font-weight:400; opacity:.7; display:block; }
 
 #toast {
   position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(-16px);
@@ -232,7 +245,7 @@ body {
     <div class="tb-icon">🏷️</div>
     <div><div class="tb-title">КМ Сканер</div><div class="tb-sub">Честный знак → CSV</div></div>
   </div>
-  <div id="badge">0 шт</div>
+  <div id="badge"><span id="badge-num">0</span><span class="badge-unit">шт</span></div>
 </div>
 
 <!-- SCANNER -->
@@ -266,9 +279,14 @@ body {
 
 <!-- EXPORT -->
 <div id="exp-bar">
-  <button id="btn-exp" onclick="dlCSV()" disabled>
-    ⬇️ Скачать CSV <span id="exp-sub">для портала ЧЗ</span>
-  </button>
+  <div id="exp-row">
+    <button id="btn-exp" onclick="dlCSV()" disabled>
+      ⬇️ CSV <span class="exp-sub">отчёт о нанесении</span>
+    </button>
+    <button id="btn-xlsx" onclick="dlXLSX()" disabled>
+      📊 XLSX <span class="exp-sub">ввод в оборот</span>
+    </button>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -485,10 +503,11 @@ function renderList() {
   const btnE  = document.getElementById('btn-exp');
   const n = codes.length;
 
-  badge.textContent = n + ' шт';
-  badge.className = n > 0 ? 'on' : '';
+  document.getElementById('badge-num').textContent = n;
+  document.getElementById('badge').className = n > 0 ? 'on' : '';
   cnt.textContent  = n > 0 ? `Кодов: ${n}` : 'Список пуст';
   btnE.disabled    = n === 0;
+  document.getElementById('btn-xlsx').disabled = n === 0;
 
   if (n === 0) {
     list.innerHTML = '<div id="empty"><div class="ei">📷</div><p>Коды появятся здесь</p></div>';
@@ -543,6 +562,33 @@ function dlCSV() {
   toast(`✅ CSV скачан (${codes.length} кодов)`);
 }
 
+function dlXLSX() {
+  if (!codes.length) return;
+  if (typeof XLSX === 'undefined') { toast('⏳ SheetJS загружается, повторите...'); return; }
+
+  // For "Ввод в оборот" portal only needs: 01 + GTIN(14) + 21 + SERIAL (no GS, no crypto)
+  // Format: 01{gtin}21{serial}  — truncated code without verification part
+  const rows = codes.map(c => {
+    const shortCode = '01' + c.gtin + '21' + c.serial;
+    return [shortCode];
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Код маркировки'],  // header
+    ...rows
+  ]);
+
+  // Set column width
+  ws['!cols'] = [{ wch: 36 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Коды');
+
+  const date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `km_vvod_${codes.length}шт_${date}.xlsx`);
+  toast(`✅ XLSX скачан (${codes.length} кодов)`);
+}
+
 // ── Init ──────────────────────────────────────────────────────
 function setCamHeight() {
   // 45% of viewport height — JS-enforced, immune to html5-qrcode CSS injection
@@ -557,5 +603,7 @@ setCamHeight();
 initCams();
 renderList();
 </script>
+<!-- SheetJS for XLSX export -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
