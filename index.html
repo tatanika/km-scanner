@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -659,7 +659,7 @@ function dlCSV() {
   const content = codes.map(c => c.raw).join('\n') + '\n';
   const blob = new Blob([new TextEncoder().encode(content)], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
-  a.download = `km_codes_${codes.length}шт_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `km_codes_${codes.length}шт_${new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`)}.csv`;
   a.href = URL.createObjectURL(blob);
   a.click();
   URL.revokeObjectURL(a.href);
@@ -685,7 +685,7 @@ function dlXLSX() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Коды');
 
-  const date = new Date().toISOString().slice(0,10);
+  const date = new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`);
   XLSX.writeFile(wb, `km_vvod_${codes.length}шт_${date}.xlsx`);
   toast(`✅ XLSX скачан (${codes.length} кодов)`);
 }
@@ -727,14 +727,14 @@ function _tryShare(file, fallbackFn) {
 
 function shareCSV() {
   if (!codes.length) return;
-  const date = new Date().toISOString().slice(0,10);
+  const date = new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`);
   const file = _makeCSVFile(codes.length, date);
   _tryShare(file, dlCSV);
 }
 
 function shareXLSX() {
   if (!codes.length) return;
-  const date = new Date().toISOString().slice(0,10);
+  const date = new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`);
   const file = _makeXLSXFile(codes.length, date);
   if (!file) { toast('⏳ SheetJS ещё загружается, повторите...'); return; }
   _tryShare(file, dlXLSX);
@@ -744,7 +744,7 @@ function shareXLSX() {
 function shareZIP() {
   if (!codes.length) return;
   if (typeof fflate === 'undefined') { toast('⏳ fflate загружается, повторите...'); return; }
-  const date = new Date().toISOString().slice(0,10);
+  const date = new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`);
   const n = codes.length;
 
   // Build CSV bytes
@@ -879,7 +879,7 @@ async function uploadYaDisk() {
   if (!token) { yadiskLogin(); return; }
   if (!codes.length) return;
 
-  const date = new Date().toISOString().slice(0,10);
+  const date = new Date().toISOString().slice(0,10) + `_` + new Date().toLocaleTimeString(`ru`,{hour:`2-digit`,minute:`2-digit`}).replace(`:`,`-`);
   const n = codes.length;
 
   toast('☁️ Загружаю на Яндекс.Диск...');
@@ -937,3 +937,4 @@ renderList();
 </script>
 </body>
 </html>
+
